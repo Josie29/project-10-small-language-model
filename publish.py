@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+from typing import Any
 
 from slm.checkpoints import DEFAULT_CHECKPOINTS, load_checkpoints, record_checkpoint
 from slm.config import load_env_file
@@ -13,10 +14,12 @@ from slm.publishing import (
     upload_card,
     upload_directory,
 )
+from slm.reporting import Trial, aggregate
 from slm.training import TrainResult
 
 DEFAULT_DATA = Path("data/train")
 DEFAULT_WEIGHTS = Path("checkpoints")
+DEFAULT_RESULTS = Path("results/base-vs-tuned")
 DATASET_REPO = "state-lifetime-tutor-v1"
 
 
@@ -113,6 +116,37 @@ ds = load_dataset("{repo_id}", data_files="sft-v1.jsonl", split="train")
 """
 
 
+def eval_metrics(results_dir: Path) -> dict[str, dict[str, Any]]:
+    """Read the latest base-vs-tuned scores, keyed by model id.
+
+    A model card without numbers is a claim; the point of publishing is that the claim
+    arrives attached to its evidence. Absent results are not an error - the first push
+    happens before the eval has run.
+
+    Args:
+        results_dir: Directory holding `trials.jsonl` from `eval.py`.
+
+    Returns:
+        Per-model metric tables, empty if no eval has been run yet.
+    """
+    trials_path = results_dir / "trials.jsonl"
+    if not trials_path.exists():
+        return {}
+    trials = [
+        Trial.model_validate_json(line)
+        for line in trials_path.read_text().splitlines()
+        if line.strip()
+    ]
+    return {
+        cell.model_id: {
+            "Spec adherence (24 clean)": f"{cell.spec_adherence:.0%}",
+            "Robustness (12 adversarial)": f"{cell.robustness:.0%}",
+            "Mechanical check pass": f"{cell.mechanical_pass_rate:.0%}",
+        }
+        for cell in aggregate(trials)
+    }
+
+
 def main() -> None:
     """Publish the dataset, model cards, and demo Space to the Hugging Face Hub."""
     parser = argparse.ArgumentParser(description="Publish artifacts to the Hub")
@@ -126,6 +160,7 @@ def main() -> None:
     parser.add_argument("--data", type=Path, default=DEFAULT_DATA)
     parser.add_argument("--weights", type=Path, default=DEFAULT_WEIGHTS)
     parser.add_argument("--checkpoints", type=Path, default=DEFAULT_CHECKPOINTS)
+    parser.add_argument("--results", type=Path, default=DEFAULT_RESULTS)
     parser.add_argument("--hf-user", default=None, help="Hub namespace; defaults to $HF_USER")
     parser.add_argument(
         "--private", action="store_true", help="Create repos private (default is public)"
@@ -158,6 +193,7 @@ def main() -> None:
         checkpoints = load_checkpoints(args.checkpoints)
         if not checkpoints:
             raise SystemExit(f"no checkpoints recorded in {args.checkpoints}")
+        metrics = eval_metrics(args.results)
         for checkpoint in checkpoints:
             run_json = Path("results/train") / f"n-{checkpoint.dataset_size}" / "run.json"
             if not run_json.exists():
@@ -167,20 +203,25 @@ def main() -> None:
 
             if args.models and checkpoint.revision is None:
                 result.revision = push_checkpoint(result, private=args.private)
-                record_checkpoint(
-                    checkpoint.model_copy(update={"revision": result.revision}),
-                    args.checkpoints,
-                )
             else:
                 result.revision = checkpoint.revision
 
-            upload_card(
+            result.revision = upload_card(
                 checkpoint.repo_id,
-                render_model_card(result, checkpoint.base_model, dataset_repo),
+                render_model_card(
+                    result,
+                    checkpoint.base_model,
+                    dataset_repo,
+                    metrics.get(checkpoint.repo_id),
+                ),
+            )
+            record_checkpoint(
+                checkpoint.model_copy(update={"revision": result.revision}),
+                args.checkpoints,
             )
             print(
                 f"model   -> https://huggingface.co/{checkpoint.repo_id} "
-                f"@ {result.revision or 'not pushed'}"
+                f"@ {result.revision}"
             )
 
 

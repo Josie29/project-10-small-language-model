@@ -105,15 +105,19 @@ def render_model_card(
         "The behavior lives in the weights, not the prompt. Send this line verbatim - the model",
         "was trained against it and nothing else:",
         "",
-        "```python",
-        'messages = [',
+        # Four backticks: the snippet itself contains a fenced block, and a three-backtick
+        # outer fence would be closed by it and wreck the rest of the card.
+        "````python",
+        "fence = chr(96) * 3",
+        'user = f"{fence}python\\n{code}\\n{fence}\\n{student_message}"',
+        "messages = [",
         f'    {{"role": "system", "content": "{TRAIN_SYSTEM_PROMPT}"}},',
-        '    {"role": "user", "content": f"```python\\n{code}\\n```\\n{student_message}"},',
-        ']',
+        '    {"role": "user", "content": user},',
+        "]",
         "text = tokenizer.apply_chat_template(",
         "    messages, tokenize=False, add_generation_prompt=True, enable_thinking=False",
         ")",
-        "```",
+        "````",
         "",
         "Thinking must be **off** and decoding greedy (`do_sample=False`); that is how it was",
         "trained and how every reported number was measured.",
@@ -149,23 +153,30 @@ def render_model_card(
     return "\n".join(lines)
 
 
-def upload_card(repo_id: str, card: str, repo_type: str = "model") -> None:
+def upload_card(repo_id: str, card: str, repo_type: str = "model") -> str:
     """Upload a README to a Hub repo.
 
     Args:
         repo_id: Target repo.
         card: Markdown content.
         repo_type: "model", "dataset", or "space".
+
+    Returns:
+        The repo's commit sha after the upload. A card push moves HEAD past whatever the
+        weights landed on, so the manifest has to be refreshed or it pins a commit that no
+        longer describes the repo a grader will clone.
     """
     from huggingface_hub import HfApi
 
-    HfApi(token=hub_token()).upload_file(
+    api = HfApi(token=hub_token())
+    api.upload_file(
         path_or_fileobj=card.encode(),
         path_in_repo="README.md",
         repo_id=repo_id,
         repo_type=repo_type,
         commit_message="Update card",
     )
+    return str(api.repo_info(repo_id, repo_type=repo_type).sha)
 
 
 def upload_directory(

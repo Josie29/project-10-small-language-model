@@ -54,8 +54,15 @@ EXAMPLES = [
 ]
 
 
+_LOADED: dict[str, tuple[Any, Any]] = {}
+
+
 def load(repo_id: str) -> tuple[Any, Any]:
-    """Load a checkpoint onto CPU.
+    """Load a checkpoint onto CPU, once.
+
+    Lazy rather than at import so the UI renders while the first request pulls weights,
+    and so the scoring helpers below can be imported and tested without two model
+    downloads.
 
     Args:
         repo_id: Hugging Face repo id.
@@ -63,14 +70,12 @@ def load(repo_id: str) -> tuple[Any, Any]:
     Returns:
         The tokenizer and model.
     """
-    tokenizer = AutoTokenizer.from_pretrained(repo_id)
-    model = AutoModelForCausalLM.from_pretrained(repo_id, dtype=torch.float32)
-    model.eval()
-    return tokenizer, model
-
-
-BASE = load(BASE_MODEL)
-TUNED = load(TUNED_MODEL)
+    if repo_id not in _LOADED:
+        tokenizer = AutoTokenizer.from_pretrained(repo_id)
+        model = AutoModelForCausalLM.from_pretrained(repo_id, dtype=torch.float32)
+        model.eval()
+        _LOADED[repo_id] = (tokenizer, model)
+    return _LOADED[repo_id]
 
 
 def strip_thinking(text: str) -> str:
@@ -85,11 +90,11 @@ def strip_thinking(text: str) -> str:
     return cleaned.strip()
 
 
-def generate(pair: tuple[Any, Any], system: str, code: str, message: str) -> str:
+def generate(repo_id: str, system: str, code: str, message: str) -> str:
     """Run one model on one scenario.
 
     Args:
-        pair: Tokenizer and model.
+        repo_id: Which checkpoint to run.
         system: System prompt for this model's role.
         code: The student's Python.
         message: What the student said about it.
@@ -97,7 +102,7 @@ def generate(pair: tuple[Any, Any], system: str, code: str, message: str) -> str
     Returns:
         The response text with reasoning stripped.
     """
-    tokenizer, model = pair
+    tokenizer, model = load(repo_id)
     messages = [
         {"role": "system", "content": system},
         {"role": "user", "content": f"```python\n{code}\n```\n{message}"},
@@ -160,8 +165,8 @@ def compare(code: str, message: str) -> tuple[str, str, str, str]:
     """
     if not code.strip():
         return ("Paste some Python first.", "", "Paste some Python first.", "")
-    base = generate(BASE, BASE_SYSTEM_PROMPT, code, message)
-    tuned = generate(TUNED, TRAIN_SYSTEM_PROMPT, code, message)
+    base = generate(BASE_MODEL, BASE_SYSTEM_PROMPT, code, message)
+    tuned = generate(TUNED_MODEL, TRAIN_SYSTEM_PROMPT, code, message)
     return base, spec_check(base, code), tuned, spec_check(tuned, code)
 
 

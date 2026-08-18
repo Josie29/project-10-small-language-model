@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 from collections.abc import Iterable, Sequence
 from enum import StrEnum
@@ -438,6 +439,19 @@ def _describe_check(check: MechanicalCheck) -> str:
 # --- Rank assignment ----------------------------------------------------------
 
 
+def _cell_jitter(cell: Cell) -> str:
+    """Return a stable, category-mixing tiebreaker for cells at the same position.
+
+    Ordering ties by `cell.slug` looks harmless but sorts every `adversarial-*` cell
+    ahead of every `clean-*` one, so when cells hold equal counts the first half of the
+    pool is 100% adversarial and the small curve points test a distribution the large
+    ones never see. Hashing the slug interleaves categories and concepts instead.
+    `hashlib` rather than `hash()` because the built-in is salted per process, which
+    would make rank assignment - and therefore the curve manifests - irreproducible.
+    """
+    return hashlib.blake2b(cell.slug.encode(), digest_size=8).hexdigest()
+
+
 def assign_ranks(
     accepted: Sequence[tuple[Candidate, GenerationProvenance]],
 ) -> list[TrainingExample]:
@@ -465,7 +479,7 @@ def assign_ranks(
             # Midpoint of this example's slice of its cell, so cells of different sizes
             # interleave proportionally rather than the largest cell dominating the head.
             position = (index + 0.5) / len(rows)
-            keyed.append((position, cell.slug, index, candidate, provenance))
+            keyed.append((position, _cell_jitter(cell), index, candidate, provenance))
     keyed.sort(key=lambda row: (row[0], row[1], row[2]))
 
     examples: list[TrainingExample] = []
@@ -520,6 +534,11 @@ def write_curve_manifests(
     """
     curve_dir = out_dir / "curve"
     curve_dir.mkdir(parents=True, exist_ok=True)
+    # Clear first: the pool grows between ingests, so manifests written at an earlier
+    # size would otherwise linger and a training run could silently pick up a stale
+    # curve point that no longer matches the pool it claims a prefix of.
+    for stale in curve_dir.glob("n-*.txt"):
+        stale.unlink()
     ordered = sorted(examples, key=lambda e: e.rank)
     written: dict[int, Path] = {}
     for size in curve_points(len(ordered), halvings):

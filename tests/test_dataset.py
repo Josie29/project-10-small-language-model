@@ -280,6 +280,30 @@ class RankAndCurveTests(unittest.TestCase):
                 clean = sum(1 for e in prefix if e.scenario.category is Category.CLEAN)
                 self.assertAlmostEqual(clean / n, 2 / 3, delta=0.06)
 
+    def test_uniform_cell_counts_still_interleave_categories(self) -> None:
+        """With equal counts per cell every example shares a position with 39 others, so
+        the tiebreaker alone decides the head of the pool. Ordering ties by cell slug put
+        every `adversarial-*` cell ahead of every `clean-*` one, making the first half of
+        the pool 100% adversarial — the small curve points would have tested a
+        distribution the large ones never see."""
+        cells = enumerate_cells()
+        accepted = [
+            (
+                make_candidate(
+                    cell.lifetime_concept, cell.code_shape, cell.category, f"{cell.slug}{i}"
+                ),
+                PROVENANCE,
+            )
+            for cell in cells
+            for i in range(2)
+        ]
+
+        pool = sorted(assign_ranks(accepted), key=lambda e: e.rank)
+
+        half = len(pool) // 2
+        clean = sum(1 for e in pool[:half] if e.scenario.category is Category.CLEAN)
+        self.assertAlmostEqual(clean / half, 0.5, delta=0.15)
+
     def test_ranks_are_dense_and_unique(self) -> None:
         pool = self._pool(120)
 

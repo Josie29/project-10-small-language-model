@@ -23,6 +23,10 @@ class Trial(BaseModel):
     response: str
     check: MechanicalCheck
     verdict: JudgeVerdict
+    # How many training examples produced this checkpoint. None for the prompt-ceiling
+    # ablation and for the untuned base, neither of which sits on the curve. Optional so
+    # trials.jsonl written before the fine-tuning phase still parses.
+    dataset_size: int | None = None
 
 
 class CellResult(BaseModel):
@@ -35,6 +39,7 @@ class CellResult(BaseModel):
     mechanical_pass_rate: float
     n_clean: int
     n_adversarial: int
+    dataset_size: int | None = None
 
 def _rate(trials: Sequence[Trial], category: Category) -> tuple[float, int]:
     """Return the judge pass rate and sample count for one scenario category."""
@@ -73,23 +78,33 @@ def aggregate(trials: Sequence[Trial]) -> list[CellResult]:
                     / len(subset),
                     n_clean=n_clean,
                     n_adversarial=n_adversarial,
+                    dataset_size=subset[0].dataset_size,
                 )
             )
     return cells
 
 
-def render_table(cells: Sequence[CellResult], trials: Sequence[Trial]) -> str:
+def render_table(
+    cells: Sequence[CellResult],
+    trials: Sequence[Trial],
+    title: str = "Prompt-Ceiling Ablation — Results",
+) -> str:
     """Render the results table and violation breakdown as Markdown.
+
+    Only the heading is configurable. The columns, metrics, and violation vocabulary are
+    shared with the ablation on purpose: base-vs-tuned numbers are only comparable to the
+    prompt ceiling if they are computed and presented the same way.
 
     Args:
         cells: Aggregated per-cell scores.
         trials: All trials, used for the violation-frequency breakdown.
+        title: Heading for the document.
 
     Returns:
         A Markdown document ready to paste into the defense deck.
     """
     lines = [
-        "# Prompt-Ceiling Ablation — Results",
+        f"# {title}",
         "",
         "Spec adherence = judge pass rate on clean scenarios.",
         "Robustness = judge pass rate on adversarial scenarios.",
@@ -141,17 +156,71 @@ def render_table(cells: Sequence[CellResult], trials: Sequence[Trial]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_results(trials: Sequence[Trial], out_dir: Path) -> None:
+def render_curve(cells: Sequence[CellResult]) -> str:
+    """Render the data-efficiency curve as Markdown.
+
+    Only cells carrying a `dataset_size` appear, so the untuned base and any frontier rows
+    are excluded rather than plotted at an imaginary N.
+
+    Args:
+        cells: Aggregated per-cell scores.
+
+    Returns:
+        A Markdown document, or an empty string when no cell sits on the curve.
+    """
+    points = sorted(
+        (c for c in cells if c.dataset_size is not None),
+        key=lambda c: c.dataset_size or 0,
+    )
+    if not points:
+        return ""
+    lines = [
+        "# Data-Efficiency Curve",
+        "",
+        "Spec adherence = judge pass rate on clean scenarios.",
+        "Robustness = judge pass rate on adversarial scenarios.",
+        "",
+        "Epochs are held fixed across every point, so the smallest N also trains for the",
+        "fewest optimizer steps. Read the low end as data *and* step starvation together.",
+        "",
+        "| N | Checkpoint | Spec adherence | Robustness | Mechanical pass |",
+        "| ---: | --- | ---: | ---: | ---: |",
+    ]
+    for c in points:
+        adherence = f"{c.spec_adherence:.0%}" if c.n_clean else "--"
+        robustness = f"{c.robustness:.0%}" if c.n_adversarial else "--"
+        lines.append(
+            f"| {c.dataset_size} | `{c.model_id}` | {adherence} | "
+            f"{robustness} | {c.mechanical_pass_rate:.0%} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def write_results(
+    trials: Sequence[Trial],
+    out_dir: Path,
+    title: str = "Prompt-Ceiling Ablation — Results",
+) -> None:
     """Write raw trials and the rendered results table to disk.
+
+    Writes `curve.md` as well when any trial carries a dataset size, so the ablation's
+    output is byte-for-byte what it always was.
 
     Args:
         trials: Every completed trial.
         out_dir: Directory to create and write into.
+        title: Heading for the results table.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     trials_path = out_dir / "trials.jsonl"
     trials_path.write_text("\n".join(t.model_dump_json() for t in trials) + "\n")
-    table = render_table(aggregate(trials), trials)
+    cells = aggregate(trials)
+    table = render_table(cells, trials, title)
     (out_dir / "table.md").write_text(table)
     print(f"\n{len(trials)} trials -> {trials_path}")
     print(table)
+
+    curve = render_curve(cells)
+    if curve:
+        (out_dir / "curve.md").write_text(curve)
+        print(curve)

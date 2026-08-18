@@ -99,8 +99,8 @@ double as DPO preference pairs), and `audit-v1.jsonl` (judge transcripts).
 ## Running the prompt-ceiling ablation
 
 ```bash
-uv venv && uv pip install anthropic openai pydantic
-cp .env.example .env          # then fill in the three keys; .env is gitignored
+uv venv && uv pip install -e .
+cp .env.example .env          # then fill in OPENROUTER_API_KEY; .env is gitignored
 
 python ablation.py --dry-run   # no API calls, proves the pipeline wiring
 python ablation.py --limit 2   # smoke test: 24 model-and-judge calls

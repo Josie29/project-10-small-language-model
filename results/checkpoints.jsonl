@@ -1,0 +1,3 @@
+{"repo_id":"machalek29/qwen3-0.6b-state-lifetime-tutor-n62","dataset_size":62,"base_model":"Qwen/Qwen3-0.6B","epochs":3,"revision":null,"train_loss":1.9229196285208066}
+{"repo_id":"machalek29/qwen3-0.6b-state-lifetime-tutor-n125","dataset_size":125,"base_model":"Qwen/Qwen3-0.6B","epochs":3,"revision":null,"train_loss":1.2511701360344887}
+{"repo_id":"machalek29/qwen3-0.6b-state-lifetime-tutor-n250","dataset_size":250,"base_model":"Qwen/Qwen3-0.6B","epochs":3,"revision":null,"train_loss":0.7949858025337259}

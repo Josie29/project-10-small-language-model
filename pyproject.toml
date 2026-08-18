@@ -9,11 +9,38 @@ dependencies = [
     "pydantic>=2.9",
 ]
 
+[project.optional-dependencies]
+# Everything needed to train a checkpoint and to run one in-process for eval. Split out of
+# the base dependencies so the ablation and data-generation paths stay a three-package
+# install that resolves in seconds.
+train = [
+    "torch>=2.4",
+    "transformers>=4.51",
+    "trl>=0.12",
+    "peft>=0.13",
+    "datasets>=3.0",
+    "accelerate>=1.0",
+    "huggingface_hub>=0.26",
+]
+# GPU-only extras. bitsandbytes has no Metal backend, so 4-bit NF4 - the "Q" in QLoRA - is
+# available on CUDA hosts only; see docs/tech-stack.md.
+gpu = ["bitsandbytes>=0.44", "modal>=0.68"]
+demo = ["gradio>=5.0"]
+
 [dependency-groups]
 dev = ["pytest>=8.0"]
 
 [tool.pyright]
-include = ["slm", "tests", "ablation.py", "generate.py"]
+include = [
+    "slm",
+    "tests",
+    "ablation.py",
+    "generate.py",
+    "eval.py",
+    "train.py",
+    "publish.py",
+    "modal_app.py",
+]
 # Without these pyright resolves against the system interpreter, so every third-party
 # import fails and the resulting "unknown type" cascade hides real errors.
 venvPath = "."

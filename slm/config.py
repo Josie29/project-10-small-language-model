@@ -9,12 +9,20 @@ from pydantic import BaseModel
 MAX_TOKENS = 1024
 DEFAULT_CONCURRENCY = 8
 
+# The student's starting point. Frozen for the same reason the judge is: every tuned
+# checkpoint is reported as a delta against this exact model, so changing it invalidates
+# the comparison. `Qwen3-0.6B` is the post-trained release, not `-Base`.
+BASE_MODEL = "Qwen/Qwen3-0.6B"
+
 class Family(StrEnum):
     """Model family. The ablation requires at least two distinct families."""
 
     ANTHROPIC = "anthropic"
     MOONSHOT = "moonshot"
     OPENAI = "openai"
+    # The student. Both the base checkpoint and every tuned checkpoint report this
+    # family, so the results table groups them together against the frontier rows.
+    QWEN = "qwen"
 
 
 class Backend(StrEnum):
@@ -22,6 +30,9 @@ class Backend(StrEnum):
 
     ANTHROPIC = "anthropic"
     OPENAI_COMPATIBLE = "openai_compatible"
+    # In-process `transformers`, for the student checkpoints. At 0.6B a full 36-scenario
+    # pass runs on a laptop, so a grader needs no GPU and no serving account.
+    TRANSFORMERS = "transformers"
 
 
 class ModelSpec(BaseModel):

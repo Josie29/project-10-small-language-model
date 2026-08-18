@@ -3,6 +3,13 @@
 # Smoke runs stay local; the real ablation output is a required submission artifact.
 results/*
 !results/state-lifetime-v1/
+# Base-vs-tuned numbers, training logs, and the checkpoint manifest are all required
+# submission artifacts a grader has to be able to read without an account.
+!results/base-vs-tuned/
+!results/train/
+!results/checkpoints.jsonl
 __pycache__/
 *.pyc
 .DS_Store
+# Merged weights are large and reproducible from the Hub; the checkpoint manifest is not.
+checkpoints/

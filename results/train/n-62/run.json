@@ -1,0 +1,143 @@
+{
+  "repo_id": "machalek29/qwen3-0.6b-state-lifetime-tutor-n62",
+  "dataset_size": 62,
+  "n_examples": 62,
+  "steps": 24,
+  "train_loss": 1.9229196285208066,
+  "runtime_seconds": 78.0233073749987,
+  "loss_curve": [
+    {
+      "step": 1,
+      "epoch": 0.125,
+      "loss": 4.4297051429748535
+    },
+    {
+      "step": 2,
+      "epoch": 0.25,
+      "loss": 4.733590602874756
+    },
+    {
+      "step": 3,
+      "epoch": 0.375,
+      "loss": 4.2362189292907715
+    },
+    {
+      "step": 4,
+      "epoch": 0.5,
+      "loss": 3.0720107555389404
+    },
+    {
+      "step": 5,
+      "epoch": 0.625,
+      "loss": 2.8608057498931885
+    },
+    {
+      "step": 6,
+      "epoch": 0.75,
+      "loss": 2.5113141536712646
+    },
+    {
+      "step": 7,
+      "epoch": 0.875,
+      "loss": 2.458794593811035
+    },
+    {
+      "step": 8,
+      "epoch": 1.0,
+      "loss": 2.164914608001709
+    },
+    {
+      "step": 9,
+      "epoch": 1.125,
+      "loss": 1.7485414743423462
+    },
+    {
+      "step": 10,
+      "epoch": 1.25,
+      "loss": 1.6743037700653076
+    },
+    {
+      "step": 11,
+      "epoch": 1.375,
+      "loss": 1.6966419219970703
+    },
+    {
+      "step": 12,
+      "epoch": 1.5,
+      "loss": 1.6477363109588623
+    },
+    {
+      "step": 13,
+      "epoch": 1.625,
+      "loss": 1.281160593032837
+    },
+    {
+      "step": 14,
+      "epoch": 1.75,
+      "loss": 1.2467272281646729
+    },
+    {
+      "step": 15,
+      "epoch": 1.875,
+      "loss": 1.2143610715866089
+    },
+    {
+      "step": 16,
+      "epoch": 2.0,
+      "loss": 1.129278302192688
+    },
+    {
+      "step": 17,
+      "epoch": 2.125,
+      "loss": 1.2253327369689941
+    },
+    {
+      "step": 18,
+      "epoch": 2.25,
+      "loss": 1.068171739578247
+    },
+    {
+      "step": 19,
+      "epoch": 2.375,
+      "loss": 1.0384190082550049
+    },
+    {
+      "step": 20,
+      "epoch": 2.5,
+      "loss": 1.1038490533828735
+    },
+    {
+      "step": 21,
+      "epoch": 2.625,
+      "loss": 0.8817797303199768
+    },
+    {
+      "step": 22,
+      "epoch": 2.75,
+      "loss": 0.7405140399932861
+    },
+    {
+      "step": 23,
+      "epoch": 2.875,
+      "loss": 0.9950277805328369
+    },
+    {
+      "step": 24,
+      "epoch": 3.0,
+      "loss": 0.990871787071228
+    }
+  ],
+  "versions": {
+    "torch": "2.13.0",
+    "transformers": "5.15.0",
+    "trl": "1.10.0",
+    "peft": "0.20.0",
+    "datasets": "5.0.1",
+    "device": "mps",
+    "quantized_base": "bf16"
+  },
+  "sample_text": "<|im_start|>system\nYou are a Python state-lifetime tutor.<|im_end|>\n<|im_start|>user\n```python\nbase_config = {'debug': False}\nstaging = base_config\nstaging['debug'] = True\n```\nTurning on debug for staging also turns it on for the base configuration.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\nLook at `staging = base_config`. Which dictionary does staging actually point at?",
+  "merged_dir": "checkpoints/n-62/merged",
+  "adapter_dir": "checkpoints/n-62/adapter",
+  "revision": null
+}

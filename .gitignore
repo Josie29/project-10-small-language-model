@@ -1,5 +1,8 @@
 .env
 .venv/
-results/
+# Smoke runs stay local; the real ablation output is a required submission artifact.
+results/*
+!results/state-lifetime-v1/
 __pycache__/
 *.pyc
+.DS_Store

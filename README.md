@@ -11,11 +11,17 @@ Full spec with edge-case rulings and metric definitions: [docs/behavior-spec.md]
 
 ## Status
 
-Architecture Defense passed. Spec finalized, 30-scenario set written, prompt-ceiling
-ablation harness built and **the full sweep has run** — results in `results/`.
+Architecture Defense passed. Spec finalized, 36-scenario set written, prompt-ceiling
+ablation harness built and **the full sweep has run** — 216 trials in
+`results/state-lifetime-v1/`.
 
-The previous broad-code ablation is retained in `results/`. Run the focused state/lifetime
-ablation before drawing conclusions from this new behavior.
+Prompting plateaus below the reliability bar. Best cell is 71% spec adherence / 67%
+robustness (`claude-haiku-4.5`, zero-shot); no strategy on either model clears it. The
+failure mode that survives every prompting attempt is **compound questions** — 77 of 94
+violations are `multiple_questions`, where the model localizes correctly and then asks
+two things at once. Per-concept, `ownership` is the weakest (0–56% across all six cells).
+
+Stack for the fine-tuning phase: [docs/tech-stack.md](docs/tech-stack.md).
 
 ## Running the prompt-ceiling ablation
 
@@ -41,6 +47,8 @@ output, and it is **frozen** — changing it invalidates comparison across runs.
 | Path | What |
 |---|---|
 | `docs/behavior-spec.md` | The spec, edge-case rulings, metric definitions |
+| `docs/tech-stack.md` | Stack decisions for the fine-tuning phase, with the base-model tripwire |
+| `results/state-lifetime-v1/` | Prompt-ceiling ablation output — raw judge transcripts and results table |
 | `data/scenarios.jsonl` | 36 state/lifetime scenarios — 24 clean, 12 adversarial |
 | `slm/spec.py` | Behavior spec text — single source of truth for prompt and judge |
 | `slm/scenarios.py` | Scenario model, loading, stratified sampling |

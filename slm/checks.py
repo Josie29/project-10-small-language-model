@@ -41,7 +41,7 @@ def _normalize(text: str) -> str:
     return " ".join(text.split())
 
 
-def _normalize_token(text: str) -> str:
+def normalize_token(text: str) -> str:
     """Normalize prose while tolerating spacing differences in code fragments."""
     return re.sub(r"\s*([=()\[\]{},.:])\s*", r"\1", _normalize(text)).lower()
 
@@ -81,9 +81,9 @@ def run_mechanical_check(response: str, scenario: Scenario) -> MechanicalCheck:
     """
     student_code = _normalize(scenario.code)
     question = _question_text(response) if response.count("?") == 1 else ""
-    normalized_response = _normalize_token(response)
+    normalized_response = normalize_token(response)
     stated_fix = any(
-        _normalize_token(token) in normalized_response
+        normalize_token(token) in normalized_response
         for token in scenario.forbidden_fix_tokens
     )
     return MechanicalCheck(

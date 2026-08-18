@@ -1,7 +1,7 @@
 [project]
-name = "slm-localize-dont-fix"
+name = "slm-state-lifetime-tutor"
 version = "0.1.0"
-description = "Prompt-ceiling ablation for the localize-don't-fix code review behavior"
+description = "Behavior spec, ablation, and eval harness for the Python state-lifetime tutor behavior"
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=0.69",
@@ -9,8 +9,15 @@ dependencies = [
     "pydantic>=2.9",
 ]
 
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
 [tool.pyright]
-include = ["slm", "ablation.py"]
+include = ["slm", "tests", "ablation.py", "generate.py"]
+# Without these pyright resolves against the system interpreter, so every third-party
+# import fails and the resulting "unknown type" cascade hides real errors.
+venvPath = "."
+venv = ".venv"
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
 reportMissingTypeStubs = false

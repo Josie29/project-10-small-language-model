@@ -10,9 +10,10 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
-from slm.config import Backend, Family, ModelSpec, load_env_file
+from slm.config import JUDGE, Backend, Family, ModelSpec, load_env_file
+from slm.judge import JudgeVerdict, judge_response
 from slm.dataset import (
     Author,
     Candidate,
@@ -331,6 +332,66 @@ def report(
     print(f"\nWrote {out_dir}/pool-v1.jsonl, curve/, sft-v1.jsonl")
 
 
+# --- Audit --------------------------------------------------------------------
+
+
+class AuditVerdict(BaseModel):
+    """One audited example, kept as a raw judge transcript."""
+
+    scenario_id: str
+    response: str
+    verdict: JudgeVerdict
+
+
+async def audit_pool(
+    pool: Sequence[TrainingExample], fraction: float, concurrency: int, out_dir: Path
+) -> tuple[int, int]:
+    """Score a random sample of the pool with the frozen judge, reporting only.
+
+    Label-by-construction means the gate rejects little, so the honest measure of data
+    quality is not the reject rate - it is an independent read on a sample. This never
+    filters; it produces a number for the Brainlift and the transcripts behind it.
+
+    Args:
+        pool: The accepted training rows.
+        fraction: Share of the pool to audit.
+        concurrency: Maximum in-flight judge requests.
+        out_dir: Directory to write `audit-v1.jsonl` into.
+
+    Returns:
+        How many sampled examples the judge passed, and how many were sampled.
+    """
+    # Seeded so a grader auditing the same pool draws the same sample.
+    sample = random.Random(0).sample(list(pool), max(1, round(len(pool) * fraction)))
+    client = build_client(JUDGE)
+    limiter = asyncio.Semaphore(concurrency)
+
+    async def judge_one(example: TrainingExample) -> AuditVerdict | None:
+        async with limiter:
+            try:
+                verdict = await judge_response(client, example.scenario, example.response)
+            except Exception as exc:  # noqa: BLE001 - one bad call must not kill the audit
+                print(f"  ! {example.scenario.id}: {exc}")
+                return None
+        return AuditVerdict(
+            scenario_id=example.scenario.id, response=example.response, verdict=verdict
+        )
+
+    print(f"Auditing {len(sample)} of {len(pool)} examples with {JUDGE.model_id}...")
+    results = [r for r in await asyncio.gather(*(judge_one(e) for e in sample)) if r]
+    write_jsonl(results, out_dir / "audit-v1.jsonl")
+
+    passed = sum(1 for r in results if r.verdict.passes)
+    print(f"\nJudge pass rate on the sample: {passed}/{len(results)} ({passed / len(results):.0%})")
+    for result in results:
+        if not result.verdict.passes:
+            print(f"  FAIL {result.scenario_id} [{result.verdict.violation}]")
+            print(f"       {result.response}")
+            print(f"       {result.verdict.reasoning[:200]}")
+    print(f"Transcripts -> {out_dir / 'audit-v1.jsonl'}")
+    return passed, len(results)
+
+
 # --- Dry run ------------------------------------------------------------------
 
 
@@ -396,6 +457,12 @@ async def main() -> None:
         action="store_true",
         help="Exercise the full pipeline with canned candidates, making no API calls",
     )
+    source.add_argument(
+        "--audit",
+        action="store_true",
+        help="Judge a random sample of the existing pool and report, without filtering",
+    )
+    parser.add_argument("--audit-frac", type=float, default=0.05)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--eval-set", type=Path, default=Path("data/scenarios.jsonl"))
     parser.add_argument("--concurrency", type=int, default=8)
@@ -413,6 +480,14 @@ async def main() -> None:
     args = parser.parse_args()
 
     eval_set = load_scenarios(args.eval_set)
+
+    if args.audit:
+        load_env_file()
+        pool = _load_existing(args.out / "pool-v1.jsonl")
+        if not pool:
+            raise SystemExit(f"no pool to audit at {args.out / 'pool-v1.jsonl'}")
+        await audit_pool(pool, args.audit_frac, args.concurrency, args.out)
+        return
 
     if args.dry_run:
         candidates = dry_candidates()

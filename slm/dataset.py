@@ -473,17 +473,19 @@ def assign_ranks(
     for candidate, provenance in accepted:
         by_cell.setdefault(candidate.cell, []).append((candidate, provenance))
 
-    keyed: list[tuple[float, str, int, Candidate, GenerationProvenance]] = []
+    # (position, jitter, slug, index): jitter only breaks ties in the ordering, while
+    # slug is what names the example - keeping them separate so ids stay human-readable.
+    keyed: list[tuple[float, str, str, int, Candidate, GenerationProvenance]] = []
     for cell, rows in by_cell.items():
         for index, (candidate, provenance) in enumerate(rows):
             # Midpoint of this example's slice of its cell, so cells of different sizes
             # interleave proportionally rather than the largest cell dominating the head.
             position = (index + 0.5) / len(rows)
-            keyed.append((position, _cell_jitter(cell), index, candidate, provenance))
-    keyed.sort(key=lambda row: (row[0], row[1], row[2]))
+            keyed.append((position, _cell_jitter(cell), cell.slug, index, candidate, provenance))
+    keyed.sort(key=lambda row: (row[0], row[1], row[3]))
 
     examples: list[TrainingExample] = []
-    for rank, (_, slug, index, candidate, provenance) in enumerate(keyed):
+    for rank, (_, _jitter, slug, index, candidate, provenance) in enumerate(keyed):
         examples.append(
             TrainingExample(
                 scenario=_as_scenario(candidate, f"{slug}-{index:03d}"),

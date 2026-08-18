@@ -304,6 +304,16 @@ class RankAndCurveTests(unittest.TestCase):
         clean = sum(1 for e in pool[:half] if e.scenario.category is Category.CLEAN)
         self.assertAlmostEqual(clean / half, 0.5, delta=0.15)
 
+    def test_ids_name_their_cell_in_readable_form(self) -> None:
+        """Ids are the join key between the pool, the curve manifests, and the judge
+        transcripts a grader reads. An opaque tiebreaker hash leaking into them makes
+        every one of those artifacts unreadable."""
+        pool = self._pool(80)
+
+        for example in pool:
+            with self.subTest(example=example.scenario.id):
+                self.assertTrue(example.scenario.id.startswith(example.cell.slug))
+
     def test_ranks_are_dense_and_unique(self) -> None:
         pool = self._pool(120)
 

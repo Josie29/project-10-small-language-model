@@ -1,0 +1,16 @@
+[project]
+name = "slm-localize-dont-fix"
+version = "0.1.0"
+description = "Prompt-ceiling ablation for the localize-don't-fix code review behavior"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.69",
+    "openai>=1.60",
+    "pydantic>=2.9",
+]
+
+[tool.pyright]
+include = ["slm", "ablation.py"]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+reportMissingTypeStubs = false

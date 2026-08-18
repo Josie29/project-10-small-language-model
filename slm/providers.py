@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import Sequence
 from enum import StrEnum
-from typing import Protocol
+from typing import Any, Protocol, cast
 
 import anthropic
 import openai
@@ -47,6 +47,7 @@ class AnthropicProvider:
         self.model_id = spec.model_id
         self.family = spec.family
         self._send_thinking_disabled = spec.send_thinking_disabled
+        self._temperature = spec.temperature
         self._client = client
 
     async def complete(self, system: str, turns: Sequence[Turn]) -> str:
@@ -63,13 +64,16 @@ class AnthropicProvider:
         extra: dict[str, object] = (
             {"thinking": {"type": "disabled"}} if self._send_thinking_disabled else {}
         )
-        response = await self._client.messages.create(
+        # The Anthropic SDK's overloaded async signature does not accept this
+        # conditionally assembled keyword set in strict Pyright mode.
+        response = cast(Any, await self._client.messages.create(  # pyright: ignore[reportCallIssue]
             model=self.model_id,
             max_tokens=MAX_TOKENS,
+            temperature=self._temperature,
             system=system,
             messages=[{"role": t.role.value, "content": t.content} for t in turns],
             **extra,  # pyright: ignore[reportArgumentType]
-        )
+        ))
         if response.stop_reason == "refusal":
             raise RuntimeError(f"{self.model_id} declined the request")
         return "".join(b.text for b in response.content if b.type == "text")
@@ -86,6 +90,7 @@ class OpenAICompatibleProvider:
         self.model_id = spec.model_id
         self.family = spec.family
         self._extra_body = spec.extra_body
+        self._temperature = spec.temperature
         self._client = client
 
     async def complete(self, system: str, turns: Sequence[Turn]) -> str:
@@ -95,6 +100,7 @@ class OpenAICompatibleProvider:
         response = await self._client.chat.completions.create(
             model=self.model_id,
             max_completion_tokens=MAX_TOKENS,
+            temperature=self._temperature,
             messages=messages,  # pyright: ignore[reportArgumentType] - SDK wants TypedDicts
             extra_body=self._extra_body,
         )

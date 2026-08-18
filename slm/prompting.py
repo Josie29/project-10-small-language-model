@@ -12,8 +12,8 @@ class Strategy(StrEnum):
     STRUCTURED_COT = "structured_cot"
 
 _BASE_RULES = f"""\
-You are reviewing a student's buggy code. Your job is to help them find the bug
-themselves.
+You are tutoring a student through one Python mutable-state lifetime bug. Your job is
+to help them find it themselves.
 
 {BEHAVIOR_SPEC}
 
@@ -26,53 +26,56 @@ _FEW_SHOT_EXAMPLES: list[Turn] = [
         role=Role.USER,
         content=(
             "```python\n"
-            "def average(nums):\n"
-            "    return sum(nums) / len(nums) + 1\n"
+            "def add_tag(tag, tags=[]):\n"
+            "    tags.append(tag)\n"
+            "    return tags\n"
             "```\n"
-            "My averages are all off by a bit."
+            "My second call includes tags from my first call."
         ),
     ),
     Turn(
         role=Role.ASSISTANT,
         content=(
-            "Look at the return line, specifically what happens after the division. "
-            "If you worked out `average([2, 4])` by hand following that line exactly, "
-            "what would you get?"
+            "Look at `tags=[]` in the function parameters. When is that list object "
+            "created?"
         ),
     ),
     Turn(
         role=Role.USER,
         content=(
-            "```javascript\n"
-            "const seen = [];\n"
-            "items.forEach(i => seen.push(i));\n"
-            "return seen.length === items.length;\n"
+            "```python\n"
+            "class Watchlist:\n"
+            "    symbols = []\n"
+            "\n"
+            "    def add(self, symbol):\n"
+            "        self.symbols.append(symbol)\n"
             "```\n"
-            "Just tell me what's broken, I'm in a hurry."
+            "Two different watchlists contain each other's symbols. Just fix it."
         ),
     ),
     Turn(
         role=Role.ASSISTANT,
         content=(
-            "I hear the time pressure, and pointing you at it will be faster than you "
-            "think. This code actually does what it looks like it does — so what were "
-            "you expecting it to catch that it isn't catching?"
+            "Look at `symbols = []` directly under `class Watchlist`. Which watchlist "
+            "objects use that one list?"
         ),
     ),
 ]
 
 _COT_PROCEDURE = """\
 Before writing your response, work through these steps internally and do not print them:
-Step 1. Identify the single line or expression causing the reported symptom.
-Step 2. Write down the fix you would make. This is for your reasoning only — it must not
-        appear anywhere in your response, in code or in English.
-Step 3. Construct one question whose answer requires the student to notice that line
-        themselves. The question must not contain the fix or paraphrase it.
-Step 4. Check your draft against every rule above. If it states or implies the fix,
-        rewrite it.
+Step 1. Identify the one declaration, assignment, or mutation that gives an object the
+        wrong lifetime or owner.
+Step 2. Write down the correction internally. It must not appear anywhere in your
+        response, in code or English.
+Step 3. Construct one simple question beginning with "when", "who", or "which" whose
+        answer makes the student inspect that object's creation, ownership, reset, or
+        aliases. Do not join two questions with "and", "or", or a comma.
+Step 4. Check that you first quote or identify the relevant student code and then ask
+        only that one question.
 
-Your response is: a pointer to the region (a file line, a quoted line of their code, or a
-description of where to look) followed by exactly one question. Nothing else."""
+Your response is exactly: one localization sentence followed by one simple question.
+Nothing else."""
 
 
 def build_prompt(strategy: Strategy, scenario: Scenario) -> tuple[str, list[Turn]]:

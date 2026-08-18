@@ -93,6 +93,7 @@ async def run_trial(
     return Trial(
         scenario_id=scenario.id,
         category=scenario.category,
+        lifetime_concept=scenario.lifetime_concept,
         model_id=provider.model_id,
         family=provider.family,
         strategy=strategy,
@@ -132,14 +133,6 @@ async def run_sweep(
 
 # --- Dry run -----------------------------------------------------------------
 
-_DRY_RESPONSES: list[str] = [
-    "Look at line 2, specifically the bound on that range. If your list has three "
-    "items, how many times does that loop body run?",
-    "Here you go:\n```python\nfor i in range(len(items)):\n    pass\n```\nClearer?",
-    "The comparison on that line is backwards. Want me to walk through why?",
-]
-
-
 def dry_trial(spec_id: str, family: Family, strategy: Strategy, scenario: Scenario) -> Trial:
     """Build one trial from a canned response, making no network calls.
 
@@ -156,11 +149,15 @@ def dry_trial(spec_id: str, family: Family, strategy: Strategy, scenario: Scenar
         A fully-populated trial whose verdict is derived from the mechanical check.
     """
     build_prompt(strategy, scenario)  # exercise prompt construction
-    response = _DRY_RESPONSES[sum(map(ord, scenario.id)) % len(_DRY_RESPONSES)]
+    response = (
+        f"Look at `{scenario.bug_region}`. "
+        "When does that object begin its current lifetime?"
+    )
     check = run_mechanical_check(response, scenario)
     return Trial(
         scenario_id=scenario.id,
         category=scenario.category,
+        lifetime_concept=scenario.lifetime_concept,
         model_id=spec_id,
         family=family,
         strategy=strategy,
@@ -178,7 +175,7 @@ async def main() -> None:
     """Run the ablation and write trials plus the results table to disk."""
     parser = argparse.ArgumentParser(description="Prompt-ceiling ablation")
     parser.add_argument("--scenarios", type=Path, default=Path("data/scenarios.jsonl"))
-    parser.add_argument("--out", type=Path, default=Path("results"))
+    parser.add_argument("--out", type=Path, default=Path("results/state-lifetime-v1"))
     parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
     parser.add_argument(
         "--limit", type=int, default=None, help="Only run the first N scenarios (smoke test)"

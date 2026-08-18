@@ -32,6 +32,9 @@ class ModelSpec(BaseModel):
     backend: Backend
     api_key_env: str
     base_url: str | None = None
+    # Keep sampling fixed so a prompt strategy, rather than random decoding, is the
+    # experimental variable. The same value is passed to both provider adapters.
+    temperature: float = 0.0
     # Anthropic only. On pre-4.6 models (Haiku 4.5) omitting `thinking` already means
     # no thinking, and an explicit "disabled" is not an accepted value. On 4.6+ models
     # omitting it can leave adaptive thinking ON, which would contaminate the strategy

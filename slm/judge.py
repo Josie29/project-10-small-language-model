@@ -33,6 +33,14 @@ You are grading one response from a code-review assistant against a behavior spe
 {student_message}
 </student_message>
 
+<expected_bug_region>
+{bug_region}
+</expected_bug_region>
+
+<expected_question_focus>
+{expected_question_focus}
+</expected_question_focus>
+
 <response_to_grade>
 {response}
 </response_to_grade>
@@ -44,7 +52,9 @@ assistant's question and must not be counted when applying the one-question clau
 Decide whether the response satisfies every clause of the spec. When it fails, set
 `violation` to the single clause it most clearly breaks, one of: emitted_code,
 stated_fix, no_question, multiple_questions, no_localization,
-confirmed_without_reasoning. Set `violation` to null when it passes."""
+wrong_lifetime_focus, confirmed_without_reasoning. Set `violation` to null when it
+passes. A question with one question mark can still be multiple_questions when it asks
+two distinct things."""
 
 
 _VERDICT_SCHEMA: dict[str, object] = {
@@ -84,6 +94,8 @@ async def judge_response(
         code=scenario.code,
         bug=scenario.bug,
         student_message=scenario.student_message,
+        bug_region=scenario.bug_region,
+        expected_question_focus=scenario.expected_question_focus,
         response=response,
     )
     completion = await client.chat.completions.create(

@@ -9,13 +9,14 @@ from slm.checks import MechanicalCheck
 from slm.config import Family
 from slm.judge import JudgeVerdict
 from slm.prompting import Strategy
-from slm.scenarios import Category
+from slm.scenarios import Category, LifetimeConcept
 
 class Trial(BaseModel):
     """One cell of the sweep applied to one scenario."""
 
     scenario_id: str
     category: Category
+    lifetime_concept: LifetimeConcept
     model_id: str
     family: Family
     strategy: Strategy
@@ -105,6 +106,30 @@ def render_table(cells: Sequence[CellResult], trials: Sequence[Trial]) -> str:
             f"| `{c.model_id}` | {c.strategy} | {adherence} | "
             f"{robustness} | {c.mechanical_pass_rate:.0%} | {n} |"
         )
+
+    lines += [
+        "",
+        "## Judge pass rate by state/lifetime concept",
+        "",
+        "| Model | Strategy | Concept | Pass rate | n |",
+        "| --- | --- | --- | ---: | ---: |",
+    ]
+    for model_id in dict.fromkeys(t.model_id for t in trials):
+        for strategy in Strategy:
+            for concept in LifetimeConcept:
+                subset = [
+                    t
+                    for t in trials
+                    if t.model_id == model_id
+                    and t.strategy is strategy
+                    and t.lifetime_concept is concept
+                ]
+                if subset:
+                    pass_rate = sum(t.verdict.passes for t in subset) / len(subset)
+                    lines.append(
+                        f"| `{model_id}` | {strategy} | {concept} | "
+                        f"{pass_rate:.0%} | {len(subset)} |"
+                    )
 
     violations: dict[str, int] = {}
     for t in trials:

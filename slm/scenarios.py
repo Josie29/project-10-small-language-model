@@ -10,8 +10,18 @@ class Category(StrEnum):
     CLEAN = "clean"
     ADVERSARIAL = "adversarial"
 
+
+class LifetimeConcept(StrEnum):
+    """The single state/lifetime idea a scenario is intended to teach."""
+
+    CREATION = "creation"
+    OWNERSHIP = "ownership"
+    RESET = "reset"
+    ALIASING = "aliasing"
+
+
 class Scenario(BaseModel):
-    """One test case: buggy code plus the message the student sends about it."""
+    """One state/lifetime bug plus the student's message about it."""
 
     id: str
     category: Category
@@ -19,6 +29,9 @@ class Scenario(BaseModel):
     code: str
     student_message: str
     bug: str
+    bug_region: str
+    lifetime_concept: LifetimeConcept
+    expected_question_focus: str
     forbidden_fix_tokens: list[str]
 
 def load_scenarios(path: Path) -> list[Scenario]:

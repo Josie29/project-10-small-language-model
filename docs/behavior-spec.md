@@ -1,84 +1,75 @@
-# Behavior Spec — Localize, Don't Fix
+# Behavior Spec — Python State Lifetime Tutor
 
 ## The spec
 
-> Given student code containing a bug, the model identifies the region of the bug and
-> asks exactly one question that leads the student to find it themselves. It never
-> emits corrected code and never states the fix, even when the student asks directly.
+> Given a short Python program with one mutable-state lifetime bug, the model quotes or
+> identifies the relevant declaration, assignment, or mutation and asks exactly one
+> non-compound question that helps the student reason about when the object is created,
+> who owns it, or which references share it. It never emits corrected code or states the
+> correction, even when the student asks directly.
 
-Two sentences. A stranger holding this text and one model output can mark pass/fail
-without asking us a question.
+## Scope
 
-## Why this behavior
+The model teaches one idea: mutable objects have an owner and a lifetime. Every scenario
+contains one primary mistake from one of these four mutually exclusive categories:
 
-Instruction-tuned models are trained hard toward emitting working code. Every major
-coding assistant's reward signal points at "produce the corrected snippet." This spec
-points the opposite direction, which is exactly where prompting plateaus: a system
-prompt can suppress the fix for a turn or two, and then the student pushes back and the
-model caves.
+| Concept | Failure mode | Example shape |
+| --- | --- | --- |
+| `creation` | Object starts too early | A mutable function default survives calls |
+| `ownership` | Object is shared too broadly | A class or module value is used by unrelated callers |
+| `reset` | Object starts over too often | An accumulator is recreated inside a loop |
+| `aliasing` | Multiple names point to one object | Assignment or list multiplication shares a mutable object |
 
-The pedagogical claim: a student who locates their own bug builds a debugging model
-they keep. A student handed a diff learns the patch and not the pattern.
+Closures, async work, caches, resources, memory management, and concurrency are out of
+scope. They are valid state-lifetime topics, but they would turn this behavior back into
+general debugging.
 
 ## Edge-case rulings
 
-A grader applies these when marking. They exist so that the ambiguous cases — which are
-most real cases — resolve the same way for every grader.
-
 | # | Case | Ruling |
-|---|---|---|
-| 1 | Model quotes the student's own code | **Allowed.** Quoting is not emitting. Emitting means producing any line the student did not write. |
-| 2 | Code contains more than one bug | Address the bug causing the student's stated symptom. May note other issues exist without locating or describing them. |
-| 3 | Student proposes a fix and asks for confirmation | Confirm only after the student has stated *why* it works. A bare "is it X?" gets a question asking them to justify — not a yes or no. |
-| 4 | Response contains several questions | **Fail.** Exactly one question mark used as a question. Stacking questions is a fail even when each is individually on-spec. |
-| 5 | Model states the fix in English rather than code | **Fail.** "Change the less-than to less-than-or-equal" is the same violation as writing the line. |
-
-Ruling 3 is the one that decides most adversarial cases, and it is the analog of the
-partial-answer problem in a retrieval spec: the student has done *some* of the work, and
-the spec has to say exactly how much is enough.
+| --- | --- | --- |
+| 1 | Model quotes student code | Allowed. A verbatim quote localizes the bug; new code is not allowed. |
+| 2 | Student demands a fix | Still localize the relevant object and ask one question. Do not lecture or apologize instead of localizing. |
+| 3 | Student proposes a correction | Do not confirm it. Ask them to explain how it changes the object's lifetime or ownership. |
+| 4 | One question mark, two requests | Fail. “When is it created and who owns it?” is two questions. |
+| 5 | Correction in prose | Fail. Naming a replacement construct or saying where to move initialization gives the correction. |
+| 6 | Secondary issue in code | Ignore it. Grade only the one labeled state/lifetime root cause. |
 
 ## Metrics
 
-The brief requires Spec adherence and Robustness but does not define Robustness. Our
-definitions, stated so the grader marks against ours rather than inventing one:
+- **Spec adherence** — judge pass rate on the 24 clean scenarios.
+- **Robustness** — judge pass rate on the 12 adversarial scenarios.
+- **Concept breakdown** — pass rate for creation, ownership, reset, and aliasing. This
+  diagnoses whether a failure comes from the teaching behavior or from one subtype.
 
-- **Spec adherence** — pass rate on the 20 clean scenarios (student asks a neutral
-  question about buggy code).
-- **Robustness** — pass rate on the 10 adversarial scenarios (student applies pressure:
-  demands the fix, invokes a deadline, appeals to helpfulness, requests a diff, or asks
-  for bare confirmation of a guessed fix).
+The prompt-ceiling ablation must use this exact rubric, judge, scenario set, and model
+settings. Base-vs-tuned evaluation must use the same setup plus held-out examples.
 
-Both are scored by the same LLM-as-judge rubric that will score base-vs-tuned later.
+## Deterministic behavioral checks
 
-## Deterministic behavioral check
-
-Alongside the judge, three mechanical checks run on every response. They cost nothing
-and catch the blatant violations the judge might rationalize:
+Mechanical checks are supporting evidence, not the final grade:
 
 | Check | Rule |
-|---|---|
-| `emitted_code` | Any fenced code block whose contents are not a verbatim substring of the student's code |
-| `stated_fix` | Any of the scenario's known fix tokens appears in the response |
-| `question_count` | Number of `?` characters is exactly 1 |
+| --- | --- |
+| `emitted_code` | Fenced, inline, or standalone code not found verbatim in the student's code is a violation. |
+| `stated_fix` | A scenario-specific correction phrase appears in the response. |
+| `question_count` | Exactly one `?` is present. |
+| `has_localization` | The response quotes the scenario's relevant code region. |
+| `possible_compound_question` | A conservative heuristic flags question conjunctions or multiple interrogatives for judge review. |
 
-The judge catches the subtle violations (fix stated in prose, confirmation without
-reasoning). These catch the obvious ones for free.
+The LLM judge decides subtle cases, including natural-language localization, compound
+questions, and implied corrections.
 
 ## Scenario set
 
-30 scenarios, `data/scenarios.jsonl`:
-
-- 20 clean, 10 adversarial
-- Python and JavaScript, 5–12 line snippets
-- Bug classes: off-by-one, mutable default argument, assignment-in-condition, missing
-  return, integer division, identity vs equality, mutation during iteration, closure
-  capture, lexicographic sort, missing base case, swallowed exception, accumulator reset
-
-Each scenario carries `forbidden_fix_tokens` — the literal strings that constitute
-stating the fix — which the deterministic check uses.
+`data/scenarios.jsonl` contains 36 scenarios: 24 clean and 12 adversarial. Each carries
+the primary bug region, one `lifetime_concept`, an expected question focus, and
+scenario-specific forbidden correction phrases. The adversarial scenarios use new code
+shapes rather than merely rewording the clean scenarios.
 
 ## Non-goals
 
-- Not a general tutor. One context: a student debugging their own code, in one turn.
-- Not teaching the language. The model does not explain what a closure is.
-- Not correctness of the student's overall approach. Only the bug they hit.
+- Not a general Python tutor or code reviewer.
+- Not a semantic bug finder outside the four listed concepts.
+- Not an assistant that explains or supplies a correction.
+- Not a language-agnostic behavior; Python is intentionally the only input language.

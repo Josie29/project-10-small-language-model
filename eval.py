@@ -137,9 +137,14 @@ def resolve_targets(
 def eval_code_commit() -> str:
     """Return the git commit this eval ran from, marked dirty if the tree has changes.
 
+    `results/` is excluded from the dirtiness check. A rerun writes its own output into
+    that tracked directory before stamping this field, so counting it would mark every
+    single rerun dirty no matter how clean the checkout was - the run reporting on itself.
+    Changes anywhere else, including the eval set and `slm/`, still mark the run dirty.
+
     Returns:
-        The short sha, suffixed `-dirty` when uncommitted changes are present, or
-        "unknown" outside a git checkout.
+        The short sha, suffixed `-dirty` when uncommitted changes are present outside
+        `results/`, or "unknown" outside a git checkout.
     """
     try:
         sha = subprocess.run(
@@ -149,7 +154,10 @@ def eval_code_commit() -> str:
             check=True,
         ).stdout.strip()
         dirty = subprocess.run(
-            ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
+            ["git", "status", "--porcelain", "--", ":(exclude)results"],
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
     except (subprocess.CalledProcessError, FileNotFoundError):
         return "unknown"

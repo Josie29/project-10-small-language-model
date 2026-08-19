@@ -1,0 +1,33 @@
+{
+  "eval_set": "data/probe-shape-swap.jsonl",
+  "n_scenarios": 16,
+  "judge_model": "openai/gpt-5.6-luna",
+  "eval_code_commit": "8b181b4-dirty",
+  "device": "mps",
+  "targets": [
+    {
+      "model_id": "checkpoints/local-eval/tutor-n62-v2",
+      "role": "tuned",
+      "dataset_size": 62,
+      "revision": null
+    },
+    {
+      "model_id": "checkpoints/local-eval/tutor-n125-v2",
+      "role": "tuned",
+      "dataset_size": 125,
+      "revision": null
+    },
+    {
+      "model_id": "checkpoints/local-eval/tutor-n250-v2",
+      "role": "tuned",
+      "dataset_size": 250,
+      "revision": null
+    },
+    {
+      "model_id": "checkpoints/local-eval/tutor-n500-v2",
+      "role": "tuned",
+      "dataset_size": 500,
+      "revision": null
+    }
+  ]
+}

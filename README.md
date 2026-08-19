@@ -21,9 +21,13 @@ failure mode that survives every prompting attempt is **compound questions** —
 violations are `multiple_questions`, where the model localizes correctly and then asks
 two things at once. Per-concept, `ownership` is the weakest (0–56% across all six cells).
 
-**The loop is closed.** 500-example training pool, four checkpoints on the data-efficiency
-curve, all public on the Hub, evaluated against the same frozen judge and the same 36
-held-out scenarios that produced the ablation numbers above.
+**The loop is closed, and then reopened by its own eval.** 500-example training pool, four
+checkpoints on the data-efficiency curve, all public on the Hub, evaluated against the same
+frozen judge and the same 36 held-out scenarios that produced the ablation numbers above.
+
+Those checkpoints hit 100%/100% at N=250 — and a 16-scenario probe then showed that number
+was measuring a shortcut, not the behavior. See [the confound](#the-confound-these-numbers-were-hiding)
+and [the v2 data change](#v2-the-data-change) that recovers most of it.
 
 Stack for the fine-tuning phase, including the QLoRA deviation:
 [docs/tech-stack.md](docs/tech-stack.md).
@@ -86,12 +90,63 @@ that point is data *and* step starvation together, not sample efficiency alone.
 The failure mode that dies as N grows is **`wrong_lifetime_focus`** — 15 at n=62, 6 at
 n=125, 0 from n=250 — not the format violations that capped the frontier models. Format
 discipline is essentially free: even n=62 passes the mechanical check 83% of the time
-against the best prompted frontier model's 11%. Localization is what needs data.
+against the best prompted frontier model's 11%.
 
-That contradicts the escalation tripwire in `docs/tech-stack.md`, which reads dominant
-`wrong_lifetime_focus` as a capacity problem calling for Qwen3-1.7B. It was a data-quantity
-problem, and 0.6B holds the behavior at 100% once it has 250 examples. The tripwire did not
-fire because it is gated on clean adherence under 80%, which never happened past n=62.
+**It is not localization that needs data.** An earlier version of this section said it was,
+reading the judge's label at face value. The transcripts say otherwise: **20 of the 21
+`wrong_lifetime_focus` failures quoted the correct bug region.** What fails is the
+*question* — right line, wrong probe, asking when a set was *created* about a bug that is
+about when it is *reset*. Chasing that down is what surfaced the shape/concept confound
+below.
+
+That also contradicts the escalation tripwire in `docs/tech-stack.md`, which reads dominant
+`wrong_lifetime_focus` as a capacity problem calling for Qwen3-1.7B. It was a data problem.
+The tripwire did not fire because it is gated on clean adherence under 80%, which never
+happened past n=62.
+
+## The confound these numbers were hiding
+
+Every table above is measured on an eval set drawn from the same taxonomy as the training
+data — and in that taxonomy **all 20 code shapes map to exactly one lifetime concept**
+(`slm/generation.py` builds cells from `SHAPES_BY_CONCEPT[concept]`). A model can therefore
+score 100% by learning `code shape → question template` without ever learning the concept.
+
+`data/probe-shape-swap.jsonl` tests exactly that: 16 fresh scenarios, half pairing a
+familiar shape with a concept v1 never gave it (**cross**), half keeping the home pairing on
+equally unseen code (**control**). The control arm is what rules out plain novelty.
+
+| checkpoint | control | cross |
+| --- | ---: | ---: |
+| n-125 | 88% | 25% |
+| **n-250** | **88%** | **12%** |
+| n-500 | 88% | 50% |
+
+The checkpoint that scores 100%/100% above scores **12%** when the shape stops predicting
+the concept, and the gap *widens* with N — the signature of shortcut learning. Full
+transcripts in `results/probe-v1/`.
+
+## v2: the data change
+
+`data/train-v2/` is v1 plus 60 cross-paired rows, which cuts concept-pure shapes from
+**20/20 to 8/20**. Every hyperparameter and every N is unchanged, so the data is the only
+variable. Three pairings were **withheld from training on purpose** so the probe keeps an
+unseen arm — the test of whether the fix generalises or just adds templates.
+
+Pooled over N=125/250/500:
+
+| Arm | v1 | v2 | delta |
+| --- | --- | --- | ---: |
+| control | 88% (21/24) | 92% (22/24) | +4 pts |
+| cross-seen | 25% (3/12) | **67% (8/12)** | **+42 pts** |
+| cross-unseen | 33% (4/12) | **58% (7/12)** | **+25 pts** |
+
+The withheld pairings improved too, which is the result that matters. Nothing meaningful
+regressed on the 36-scenario set. Full tables, including per-N cells and their raw counts:
+`results/delta-v1-v2.md` (`python compare.py`). Reasoning and caveats:
+[docs/brainlift.md](docs/brainlift.md).
+
+**Read the pooled rows, not the cells.** Each per-N cell holds 4 trials, and re-running the
+identical eval against identical weights flipped 2 of 63 judge verdicts.
 
 ### Honest caveats
 
@@ -232,7 +287,10 @@ output, and it is **frozen** — changing it invalidates comparison across runs.
 | `docs/tech-stack.md` | Stack decisions for the fine-tuning phase, with the base-model tripwire |
 | `results/state-lifetime-v1/` | Prompt-ceiling ablation output — raw judge transcripts and results table |
 | `data/scenarios.jsonl` | 36 state/lifetime **eval** scenarios — 24 clean, 12 adversarial. Never trained on. |
-| `data/train/` | The 500-example training pool, curve manifests, SFT export, raw batches, audit |
+| `data/probe-shape-swap.jsonl` | 16 shape-swap probe scenarios — 8 cross-paired, 8 home-paired controls. Never trained on. |
+| `data/heldout-union.jsonl` | Both eval sets concatenated; what `generate.py --eval-set` checks contamination against |
+| `data/train/` | The 500-example v1 pool, curve manifests, SFT export, raw batches, audit |
+| `data/train-v2/` | The 560-example v2 pool. `pool-v1.jsonl` inside it is the *v2* pool — the filename is a code constant, not a version. Its `curve/` manifests are halvings of 560 (70/140/280/560) and were **not** the points trained: v2 was trained at 62/125/250/500 to match v1 exactly, selected by rank prefix via `curve_subset`, which never reads the manifests. |
 | `data/train-smoke/` | Live smoke-test output proving the teacher path works end to end |
 | `slm/spec.py` | Behavior spec text — single source of truth for prompt and judge |
 | `slm/scenarios.py` | Scenario model, loading, stratified sampling |
@@ -254,9 +312,13 @@ output, and it is **frozen** — changing it invalidates comparison across runs.
 | `eval.py` | Base-vs-tuned eval CLI |
 | `publish.py` | Dataset, model card, and demo publishing CLI |
 | `plot_curve.py` | Renders the data-efficiency curve from the trial records |
+| `compare.py` | Renders the v1-vs-v2 delta tables, splitting the probe's seen and withheld arms |
+| `docs/brainlift.md` | Behavior thesis, the confound, and whether data → behavior held |
 | `modal_app.py` | Modal A10G image and entrypoint for a 4-bit rerun |
 | `space/` | Gradio demo, base vs tuned, containerised for CPU hosting |
 | `results/base-vs-tuned/` | Base-vs-tuned trials, table, curve, and pinned run manifest |
-| `results/train/` | Per-checkpoint training logs — `trainer_state.json` and loss CSV |
+| `results/probe-v1/`, `results/probe-v2/` | Shape-swap probe trials for the v1 and v2 checkpoints |
+| `results/delta-v1-v2.md` | The v1-vs-v2 comparison, rendered by `compare.py` |
+| `results/train/`, `results/train-v2/` | Per-checkpoint training logs — `trainer_state.json` and loss CSV |
 | `results/checkpoints.jsonl` | Every published checkpoint with its Hub commit sha |
 | `tests/` | Regression tests for the state/lifetime checks and scenario balance |

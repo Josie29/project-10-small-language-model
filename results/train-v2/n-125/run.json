@@ -1,0 +1,263 @@
+{
+  "repo_id": "machalek29/qwen3-0.6b-state-lifetime-tutor-n125-v2",
+  "dataset_size": 125,
+  "n_examples": 125,
+  "steps": 48,
+  "train_loss": 1.283716765542825,
+  "runtime_seconds": 149.58016662499722,
+  "loss_curve": [
+    {
+      "step": 1,
+      "epoch": 0.0625,
+      "loss": 4.554232597351074
+    },
+    {
+      "step": 2,
+      "epoch": 0.125,
+      "loss": 4.739460468292236
+    },
+    {
+      "step": 3,
+      "epoch": 0.1875,
+      "loss": 4.25223970413208
+    },
+    {
+      "step": 4,
+      "epoch": 0.25,
+      "loss": 3.5016262531280518
+    },
+    {
+      "step": 5,
+      "epoch": 0.3125,
+      "loss": 3.1133086681365967
+    },
+    {
+      "step": 6,
+      "epoch": 0.375,
+      "loss": 2.4757256507873535
+    },
+    {
+      "step": 7,
+      "epoch": 0.4375,
+      "loss": 2.202639102935791
+    },
+    {
+      "step": 8,
+      "epoch": 0.5,
+      "loss": 2.2372097969055176
+    },
+    {
+      "step": 9,
+      "epoch": 0.5625,
+      "loss": 1.8055719137191772
+    },
+    {
+      "step": 10,
+      "epoch": 0.625,
+      "loss": 1.9605425596237183
+    },
+    {
+      "step": 11,
+      "epoch": 0.6875,
+      "loss": 1.6908636093139648
+    },
+    {
+      "step": 12,
+      "epoch": 0.75,
+      "loss": 1.5829163789749146
+    },
+    {
+      "step": 13,
+      "epoch": 0.8125,
+      "loss": 1.7984428405761719
+    },
+    {
+      "step": 14,
+      "epoch": 0.875,
+      "loss": 1.5620936155319214
+    },
+    {
+      "step": 15,
+      "epoch": 0.9375,
+      "loss": 1.3081008195877075
+    },
+    {
+      "step": 16,
+      "epoch": 1.0,
+      "loss": 1.1119190454483032
+    },
+    {
+      "step": 17,
+      "epoch": 1.0625,
+      "loss": 1.142200231552124
+    },
+    {
+      "step": 18,
+      "epoch": 1.125,
+      "loss": 0.9290836453437805
+    },
+    {
+      "step": 19,
+      "epoch": 1.1875,
+      "loss": 0.9822887182235718
+    },
+    {
+      "step": 20,
+      "epoch": 1.25,
+      "loss": 0.8528784513473511
+    },
+    {
+      "step": 21,
+      "epoch": 1.3125,
+      "loss": 0.9606199264526367
+    },
+    {
+      "step": 22,
+      "epoch": 1.375,
+      "loss": 0.8157285451889038
+    },
+    {
+      "step": 23,
+      "epoch": 1.4375,
+      "loss": 0.7196465730667114
+    },
+    {
+      "step": 24,
+      "epoch": 1.5,
+      "loss": 0.8288172483444214
+    },
+    {
+      "step": 25,
+      "epoch": 1.5625,
+      "loss": 0.8254743218421936
+    },
+    {
+      "step": 26,
+      "epoch": 1.625,
+      "loss": 0.6627591848373413
+    },
+    {
+      "step": 27,
+      "epoch": 1.6875,
+      "loss": 0.8601657748222351
+    },
+    {
+      "step": 28,
+      "epoch": 1.75,
+      "loss": 0.8985113501548767
+    },
+    {
+      "step": 29,
+      "epoch": 1.8125,
+      "loss": 0.7321204543113708
+    },
+    {
+      "step": 30,
+      "epoch": 1.875,
+      "loss": 0.4828270673751831
+    },
+    {
+      "step": 31,
+      "epoch": 1.9375,
+      "loss": 0.6544151902198792
+    },
+    {
+      "step": 32,
+      "epoch": 2.0,
+      "loss": 0.6784665584564209
+    },
+    {
+      "step": 33,
+      "epoch": 2.0625,
+      "loss": 0.5247024893760681
+    },
+    {
+      "step": 34,
+      "epoch": 2.125,
+      "loss": 0.4659458100795746
+    },
+    {
+      "step": 35,
+      "epoch": 2.1875,
+      "loss": 0.5367494821548462
+    },
+    {
+      "step": 36,
+      "epoch": 2.25,
+      "loss": 0.7790690064430237
+    },
+    {
+      "step": 37,
+      "epoch": 2.3125,
+      "loss": 0.6379137635231018
+    },
+    {
+      "step": 38,
+      "epoch": 2.375,
+      "loss": 0.535593569278717
+    },
+    {
+      "step": 39,
+      "epoch": 2.4375,
+      "loss": 0.4840465486049652
+    },
+    {
+      "step": 40,
+      "epoch": 2.5,
+      "loss": 0.576127290725708
+    },
+    {
+      "step": 41,
+      "epoch": 2.5625,
+      "loss": 0.4859468936920166
+    },
+    {
+      "step": 42,
+      "epoch": 2.625,
+      "loss": 0.5256288647651672
+    },
+    {
+      "step": 43,
+      "epoch": 2.6875,
+      "loss": 0.6172807812690735
+    },
+    {
+      "step": 44,
+      "epoch": 2.75,
+      "loss": 0.7867118120193481
+    },
+    {
+      "step": 45,
+      "epoch": 2.8125,
+      "loss": 0.46957069635391235
+    },
+    {
+      "step": 46,
+      "epoch": 2.875,
+      "loss": 0.4205855429172516
+    },
+    {
+      "step": 47,
+      "epoch": 2.9375,
+      "loss": 0.47487524151802063
+    },
+    {
+      "step": 48,
+      "epoch": 3.0,
+      "loss": 0.3747606873512268
+    }
+  ],
+  "versions": {
+    "torch": "2.13.0",
+    "transformers": "5.15.0",
+    "trl": "1.10.0",
+    "peft": "0.20.0",
+    "datasets": "5.0.1",
+    "device": "mps",
+    "quantized_base": "bf16"
+  },
+  "sample_text": "<|im_start|>system\nYou are a Python state-lifetime tutor.<|im_end|>\n<|im_start|>user\n```python\nbase_config = {'debug': False}\nstaging = base_config\nstaging['debug'] = True\n```\nTurning on debug for staging also turns it on for the base configuration.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\nLook at `staging = base_config`. Which dictionary does staging actually point at?",
+  "merged_dir": "checkpoints/n-125-v2/merged",
+  "adapter_dir": "checkpoints/n-125-v2/adapter",
+  "revision": "dd49baa7d2b0ec04e57b8c972ec4acc7e3067c6c"
+}

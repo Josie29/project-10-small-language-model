@@ -1,4 +1,8 @@
 {"repo_id":"machalek29/qwen3-0.6b-state-lifetime-tutor-n62","dataset_size":62,"base_model":"Qwen/Qwen3-0.6B","epochs":3,"revision":"1d9231d69136087c615fc8385fb0400b6d8acbe3","train_loss":1.9229196285208066}
+{"repo_id":"machalek29/qwen3-0.6b-state-lifetime-tutor-n62-v2","dataset_size":62,"base_model":"Qwen/Qwen3-0.6B","epochs":3,"revision":"b0c781882a263763354788308c554dbf0baf6c64","train_loss":1.9410934746265411}
 {"repo_id":"machalek29/qwen3-0.6b-state-lifetime-tutor-n125","dataset_size":125,"base_model":"Qwen/Qwen3-0.6B","epochs":3,"revision":"77b54142d938ccb81e1b22b696c64015ced1dc10","train_loss":1.2511701360344887}
+{"repo_id":"machalek29/qwen3-0.6b-state-lifetime-tutor-n125-v2","dataset_size":125,"base_model":"Qwen/Qwen3-0.6B","epochs":3,"revision":"8f8f7569f5cfbb45492e4cfe710502c2115b18ed","train_loss":1.283716765542825}
 {"repo_id":"machalek29/qwen3-0.6b-state-lifetime-tutor-n250","dataset_size":250,"base_model":"Qwen/Qwen3-0.6B","epochs":3,"revision":"d8c80aec0bd81e7bb51eecc58c1b330ec8b11b64","train_loss":0.7949858025337259}
+{"repo_id":"machalek29/qwen3-0.6b-state-lifetime-tutor-n250-v2","dataset_size":250,"base_model":"Qwen/Qwen3-0.6B","epochs":3,"revision":"46ad7fbccd36cd248a73396b9b8f23d00c48daa2","train_loss":0.8204247672110796}
 {"repo_id":"machalek29/qwen3-0.6b-state-lifetime-tutor-n500","dataset_size":500,"base_model":"Qwen/Qwen3-0.6B","epochs":3,"revision":"e95eebc52e3924db94a79144b4551b2bf8e8fb37","train_loss":0.5028729597254405}
+{"repo_id":"machalek29/qwen3-0.6b-state-lifetime-tutor-n500-v2","dataset_size":500,"base_model":"Qwen/Qwen3-0.6B","epochs":3,"revision":"232c873cde88c0c520cc2774e3e568e38725760f","train_loss":0.5416532435587474}

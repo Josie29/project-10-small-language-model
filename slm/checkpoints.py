@@ -11,7 +11,11 @@ DEFAULT_CHECKPOINTS = Path("results/checkpoints.jsonl")
 # train.py names every repo `<user>/qwen3-0.6b-state-lifetime-tutor-n<size>`, so the curve
 # point is recoverable from the id alone when the manifest is missing - which is the case
 # for a grader who cloned the repo and only has the Hub to go on.
-_SIZE_SUFFIX = re.compile(r"-n(\d+)$")
+#
+# Trailing segments after the size are tolerated so that a dataset revision trained with
+# `train.py --repo-suffix` (`...-n125-v2`) still reports its curve point. Without this the
+# size comes back None and every v2 checkpoint drops out of the curve table.
+_SIZE_SUFFIX = re.compile(r"-n(\d+)(?:-[A-Za-z0-9.]+)*$")
 
 
 class Checkpoint(BaseModel):

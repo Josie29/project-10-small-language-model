@@ -111,6 +111,15 @@ def main() -> None:
     parser.add_argument("--backend", type=Backend, choices=list(Backend), default=Backend.LOCAL)
     parser.add_argument("--device", default=None, help="torch device; autodetected when omitted")
     parser.add_argument("--hf-user", default=None, help="Hub namespace; defaults to $HF_USER")
+    parser.add_argument(
+        "--repo-suffix",
+        default="",
+        help=(
+            "Appended to each checkpoint repo id and local weights dir. Required when "
+            "training a second dataset revision: without it a rerun overwrites the "
+            "exact Hub weights an earlier results/*/run.json pins against."
+        ),
+    )
     parser.add_argument("--logs", type=Path, default=DEFAULT_LOGS)
     parser.add_argument("--weights", type=Path, default=DEFAULT_WEIGHTS)
     parser.add_argument("--checkpoints", type=Path, default=DEFAULT_CHECKPOINTS)
@@ -139,7 +148,7 @@ def main() -> None:
         config = TrainConfig(
             base_model=args.base,
             dataset_size=size,
-            repo_id=f"{hf_user or 'DRY'}/{REPO_PREFIX}-n{size}",
+            repo_id=f"{hf_user or 'DRY'}/{REPO_PREFIX}-n{size}{args.repo_suffix}",
             epochs=args.epochs,
         )
         jobs.append((config, sft_rows(curve_subset(pool, size))))
@@ -157,7 +166,7 @@ def main() -> None:
 
     for config, rows in jobs:
         print(f"\n=== training n={config.dataset_size} ===")
-        output_dir = args.weights / f"n-{config.dataset_size}"
+        output_dir = args.weights / f"n-{config.dataset_size}{args.repo_suffix}"
         if args.backend is Backend.MODAL:
             result = train_remote(config, rows)
         else:

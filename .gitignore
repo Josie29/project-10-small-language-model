@@ -8,6 +8,15 @@ results/*
 !results/base-vs-tuned/
 !results/train/
 !results/checkpoints.jsonl
+# The v2 data change and the probe that motivated it. Same reasoning: these are the raw
+# judge transcripts behind the Early Submission tables, not smoke runs. probe-v2-run1 is
+# the superseded first run, kept because the Brainlift cites it for judge variance.
+!results/probe-v1/
+!results/probe-v2/
+!results/probe-v2-run1/
+!results/base-vs-tuned-v2/
+!results/train-v2/
+!results/delta-v1-v2.md
 __pycache__/
 *.pyc
 .DS_Store

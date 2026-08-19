@@ -119,6 +119,32 @@ ds = load_dataset("{repo_id}", data_files="sft-v1.jsonl", split="train")
 """
 
 
+def resolve_metrics(
+    metrics: dict[str, dict[str, Any]], repo_id: str
+) -> dict[str, Any] | None:
+    """Find a checkpoint's metrics, tolerating an eval that ran against local weights.
+
+    `eval.py` keys trials by whatever `--model` was given. When the Hub copy cannot be
+    downloaded - a full disk, an offline grader - the eval runs against a local directory
+    instead, and the recorded id is a path rather than a repo id. A local directory whose
+    final path segment is a suffix of the repo name is the same checkpoint, so the card
+    still gets its numbers.
+
+    Args:
+        metrics: Per-model metric tables from `eval_metrics`.
+        repo_id: The Hub repo the card is being written for.
+
+    Returns:
+        The matching metric table, or None if this checkpoint has not been evaluated.
+    """
+    if repo_id in metrics:
+        return metrics[repo_id]
+    for key, table in metrics.items():
+        if repo_id.endswith(key.rsplit("/", maxsplit=1)[-1]):
+            return table
+    return None
+
+
 def eval_metrics(results_dir: Path) -> dict[str, dict[str, Any]]:
     """Read the latest base-vs-tuned scores, keyed by model id.
 
@@ -167,6 +193,30 @@ def main() -> None:
         default=None,
         help="Checkpoint the Space demos; defaults to the largest recorded one",
     )
+    parser.add_argument(
+        "--logs",
+        type=Path,
+        default=Path("results/train"),
+        help=(
+            "Training logs to build cards from. Must match the dataset revision being "
+            "carded: run logs are keyed by size alone, so pointing this at results/train "
+            "while carding v2 describes a v2 checkpoint with v1's training run."
+        ),
+    )
+    parser.add_argument(
+        "--match",
+        default="",
+        help="Only touch checkpoints whose repo id contains this substring, e.g. '-v2'",
+    )
+    parser.add_argument(
+        "--dataset-repo",
+        default=DATASET_REPO,
+        help=(
+            "Hub dataset name (without the namespace) to publish to and to cite in model "
+            "cards. Must be set alongside --data when publishing a second dataset "
+            "revision, or the v2 cards cite the v1 dataset."
+        ),
+    )
     parser.add_argument("--data", type=Path, default=DEFAULT_DATA)
     parser.add_argument("--weights", type=Path, default=DEFAULT_WEIGHTS)
     parser.add_argument("--checkpoints", type=Path, default=DEFAULT_CHECKPOINTS)
@@ -184,7 +234,7 @@ def main() -> None:
     if not (args.dataset or args.models or args.cards or args.space):
         raise SystemExit("nothing to do: pass --dataset, --models, --cards, or --space")
 
-    dataset_repo = f"{hf_user}/{DATASET_REPO}"
+    dataset_repo = f"{hf_user}/{args.dataset_repo}"
 
     if args.dataset:
         pool = load_pool(args.data / "pool-v1.jsonl")
@@ -205,7 +255,9 @@ def main() -> None:
             raise SystemExit(f"no checkpoints recorded in {args.checkpoints}")
         metrics = eval_metrics(args.results)
         for checkpoint in checkpoints:
-            run_json = Path("results/train") / f"n-{checkpoint.dataset_size}" / "run.json"
+            if args.match and args.match not in checkpoint.repo_id:
+                continue
+            run_json = args.logs / f"n-{checkpoint.dataset_size}" / "run.json"
             if not run_json.exists():
                 print(f"  ! no run log for n={checkpoint.dataset_size}, skipping")
                 continue
@@ -222,7 +274,7 @@ def main() -> None:
                     result,
                     checkpoint.base_model,
                     dataset_repo,
-                    metrics.get(checkpoint.repo_id),
+                    resolve_metrics(metrics, checkpoint.repo_id),
                 ),
             )
             record_checkpoint(

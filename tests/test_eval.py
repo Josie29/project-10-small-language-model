@@ -77,6 +77,15 @@ class TargetResolutionTests(unittest.TestCase):
         self.assertEqual(targets[0].dataset_size, 125)
         self.assertIsNone(infer_dataset_size("Qwen/Qwen3-0.6B"))
 
+    def test_a_dataset_revision_suffix_still_reports_its_curve_point(self) -> None:
+        # Catches the bug where a second dataset revision trained with
+        # `train.py --repo-suffix=-v2` fell out of the curve table entirely: the size
+        # pattern was anchored to the end of the id, so `...-n125-v2` inferred None and
+        # every v2 checkpoint rendered without an N to plot against.
+        self.assertEqual(infer_dataset_size("u/tutor-n125-v2"), 125)
+        self.assertEqual(infer_dataset_size("u/tutor-n62-v2-adapter"), 62)
+        self.assertIsNone(infer_dataset_size("u/tutor-nabc-v2"))
+
     def test_refuses_to_run_with_nothing_to_evaluate(self) -> None:
         with self.assertRaises(ValueError):
             resolve_targets([], None, Path("does-not-exist"))

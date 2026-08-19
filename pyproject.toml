@@ -26,6 +26,7 @@ train = [
 # available on CUDA hosts only; see docs/tech-stack.md.
 gpu = ["bitsandbytes>=0.44", "modal>=0.68"]
 demo = ["gradio>=5.0"]
+plot = ["matplotlib>=3.9"]
 
 [dependency-groups]
 dev = ["pytest>=8.0"]
@@ -40,6 +41,7 @@ include = [
     "train.py",
     "publish.py",
     "modal_app.py",
+    "plot_curve.py",
 ]
 # Without these pyright resolves against the system interpreter, so every third-party
 # import fails and the resulting "unknown type" cascade hides real errors.

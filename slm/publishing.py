@@ -179,8 +179,29 @@ def upload_card(repo_id: str, card: str, repo_type: str = "model") -> str:
     return str(api.repo_info(repo_id, repo_type=repo_type).sha)
 
 
+def set_space_variable(repo_id: str, key: str, value: str) -> None:
+    """Set a public environment variable on a Space.
+
+    A variable rather than a hardcoded default, so retargeting the demo at a different
+    curve point is a settings change instead of a redeploy. Not a secret - the checkpoint
+    it names is public.
+
+    Args:
+        repo_id: The Space.
+        key: Variable name.
+        value: Variable value.
+    """
+    from huggingface_hub import HfApi
+
+    HfApi(token=hub_token()).add_space_variable(repo_id=repo_id, key=key, value=value)
+
+
 def upload_directory(
-    repo_id: str, folder: Path, repo_type: str, private: bool = False
+    repo_id: str,
+    folder: Path,
+    repo_type: str,
+    private: bool = False,
+    space_sdk: str | None = None,
 ) -> str:
     """Create a repo if needed and upload a directory into it.
 
@@ -189,6 +210,9 @@ def upload_directory(
         folder: Local directory to upload.
         repo_type: "model", "dataset", or "space".
         private: Whether a newly created repo starts private.
+        space_sdk: Required when creating a Space - "gradio", "docker", and so on. The Hub
+            rejects a Space created without one, even though the app's own README
+            frontmatter also declares it.
 
     Returns:
         The repo's commit sha after the upload.
@@ -196,7 +220,13 @@ def upload_directory(
     from huggingface_hub import HfApi
 
     api = HfApi(token=hub_token())
-    api.create_repo(repo_id, repo_type=repo_type, private=private, exist_ok=True)
+    api.create_repo(
+        repo_id,
+        repo_type=repo_type,
+        private=private,
+        exist_ok=True,
+        space_sdk=space_sdk,
+    )
     api.upload_folder(
         repo_id=repo_id,
         repo_type=repo_type,

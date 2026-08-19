@@ -52,12 +52,34 @@ measured against. `results/checkpoints.jsonl` records each repo's current HEAD, 
 commit later because the model cards were written after the eval that fills them in. The
 weights are byte-identical across that pair; `run.json` is the one to pin against.
 
+## Data-efficiency curve
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="results/base-vs-tuned/curve-dark.png">
+  <img alt="Spec adherence and robustness against training-set size, on a log x-axis. Both metrics rise from 46%/67% at N=62 to 100%/100% at N=250 and stay flat to N=500, crossing the 80% reliability bar between N=62 and N=125." src="results/base-vs-tuned/curve-light.png">
+</picture>
+
+Regenerate with `python plot_curve.py`; it reads `results/base-vs-tuned/trials.jsonl`, so
+the figure cannot drift from the numbers.
+
+**Spacing.** Log-spaced by repeated halving from the full pool — 500 / 250 / 125 / 62.
+Halving is the right step because the question is *order of magnitude*, not precision:
+linear spacing would have spent all four runs in a region the behavior had already
+saturated. Every point is a strict rank-ordered prefix of the one above it
+(`slm/dataset.py` assigns ranks so each prefix stays balanced across concept, code shape,
+and the clean:adversarial ratio), so the subsets are nested and **N is the only variable
+between points** — not which examples happened to be drawn.
+
 ### Minimum viable N
 
 **125.** That is the smallest point clearing the 80% clean-adherence bar set in
 [docs/tech-stack.md](docs/tech-stack.md) — a bar chosen because merely matching the 71%
 prompted ceiling would prove nothing. The behavior saturates at 250 and 500 buys nothing
 measurable on this eval set.
+
+The honest reading of the low end: at N=62 the run is only 24 optimizer steps, because
+epochs are held fixed across every point so that N stays the sole variable. The 46% at
+that point is data *and* step starvation together, not sample efficiency alone.
 
 ### What the curve actually diagnosed
 
@@ -230,9 +252,10 @@ output, and it is **frozen** — changing it invalidates comparison across runs.
 | `ablation.py` | Models under test, the sweep, CLI |
 | `train.py` | Training sweep CLI — local MPS or Modal |
 | `eval.py` | Base-vs-tuned eval CLI |
-| `publish.py` | Dataset, model card, and Space publishing CLI |
+| `publish.py` | Dataset, model card, and demo publishing CLI |
+| `plot_curve.py` | Renders the data-efficiency curve from the trial records |
 | `modal_app.py` | Modal A10G image and entrypoint for a 4-bit rerun |
-| `space/` | Gradio demo, base vs tuned on free CPU |
+| `space/` | Gradio demo, base vs tuned, containerised for CPU hosting |
 | `results/base-vs-tuned/` | Base-vs-tuned trials, table, curve, and pinned run manifest |
 | `results/train/` | Per-checkpoint training logs — `trainer_state.json` and loss CSV |
 | `results/checkpoints.jsonl` | Every published checkpoint with its Hub commit sha |

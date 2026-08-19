@@ -10,6 +10,7 @@ from slm.config import load_env_file
 from slm.dataset import load_pool
 from slm.publishing import (
     push_checkpoint,
+    set_space_variable,
     render_model_card,
     upload_card,
     upload_directory,
@@ -21,6 +22,8 @@ DEFAULT_DATA = Path("data/train")
 DEFAULT_WEIGHTS = Path("checkpoints")
 DEFAULT_RESULTS = Path("results/base-vs-tuned")
 DATASET_REPO = "state-lifetime-tutor-v1"
+SPACE_REPO = "state-lifetime-tutor-demo"
+DEFAULT_SPACE = Path("space")
 
 
 def render_dataset_card(repo_id: str, n_examples: int, curve_points: list[int]) -> str:
@@ -157,6 +160,13 @@ def main() -> None:
         help="Push any checkpoint that has local weights but no revision, then write cards",
     )
     parser.add_argument("--cards", action="store_true", help="Rewrite model cards only")
+    parser.add_argument("--space", action="store_true", help="Deploy the Gradio demo Space")
+    parser.add_argument("--space-dir", type=Path, default=DEFAULT_SPACE)
+    parser.add_argument(
+        "--tuned",
+        default=None,
+        help="Checkpoint the Space demos; defaults to the largest recorded one",
+    )
     parser.add_argument("--data", type=Path, default=DEFAULT_DATA)
     parser.add_argument("--weights", type=Path, default=DEFAULT_WEIGHTS)
     parser.add_argument("--checkpoints", type=Path, default=DEFAULT_CHECKPOINTS)
@@ -171,8 +181,8 @@ def main() -> None:
     hf_user = args.hf_user or os.environ.get("HF_USER")
     if not hf_user:
         raise SystemExit("set HF_USER in .env or pass --hf-user")
-    if not (args.dataset or args.models or args.cards):
-        raise SystemExit("nothing to do: pass --dataset, --models, or --cards")
+    if not (args.dataset or args.models or args.cards or args.space):
+        raise SystemExit("nothing to do: pass --dataset, --models, --cards, or --space")
 
     dataset_repo = f"{hf_user}/{DATASET_REPO}"
 
@@ -223,6 +233,22 @@ def main() -> None:
                 f"model   -> https://huggingface.co/{checkpoint.repo_id} "
                 f"@ {result.revision}"
             )
+
+
+    if args.space:
+        checkpoints = load_checkpoints(args.checkpoints)
+        if not checkpoints and args.tuned is None:
+            raise SystemExit("no checkpoint to demo: train one, or pass --tuned")
+        tuned = args.tuned or max(checkpoints, key=lambda c: c.dataset_size).repo_id
+        space_repo = f"{hf_user}/{SPACE_REPO}"
+        sha = upload_directory(
+            space_repo, args.space_dir, "space", private=args.private, space_sdk="gradio"
+        )
+        # The demo target is a variable rather than a code edit, so pointing the Space at a
+        # different curve point costs a settings change instead of a redeploy.
+        set_space_variable(space_repo, "TUNED_MODEL", tuned)
+        print(f"space   -> https://huggingface.co/spaces/{space_repo} @ {sha}")
+        print(f"           demoing {tuned}")
 
 
 if __name__ == "__main__":

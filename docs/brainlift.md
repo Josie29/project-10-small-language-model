@@ -86,10 +86,10 @@ be explained by novelty; a drop on cross while control holds isolates the confou
 
 | checkpoint | control | cross | gap |
 | --- | ---: | ---: | ---: |
-| n-62 | 62% | 62% | 0 |
-| n-125 | 88% | 25% | 62 pts |
-| **n-250** | **88%** | **12%** | **75 pts** |
-| n-500 | 88% | 50% | 38 pts |
+| n-62 | 62% (5/8) | 50% (4/8) | 12 pts |
+| n-125 | 88% (7/8) | 0% (0/8) | 88 pts |
+| **n-250** | **88% (7/8)** | **12% (1/8)** | **75 pts** |
+| n-500 | 88% (7/8) | 50% (4/8) | 38 pts |
 
 The checkpoint that scores 100%/100% on my own eval set scores **12%** when the shape stops
 predicting the concept. Every cross-arm failure asked the question belonging to the
@@ -131,23 +131,32 @@ Pooled over N=125/250/500 (`results/delta-v1-v2.md`, regenerate with `python com
 
 | Arm | v1 | v2 | delta |
 | --- | --- | --- | ---: |
-| control | 88% (21/24) | 92% (22/24) | +4 pts |
-| cross-**seen** | 25% (3/12) | **67% (8/12)** | **+42 pts** |
-| cross-**unseen** | 33% (4/12) | **58% (7/12)** | **+25 pts** |
+| control | 88% (21/24) | 83% (20/24) | −4 pts |
+| cross-**seen** | 17% (2/12) | **75% (9/12)** | **+58 pts** |
+| cross-**unseen** | 25% (3/12) | **67% (8/12)** | **+42 pts** |
 
 **The withheld pairings improved too.** That is the result the hold-out was built to test.
 If v2 had merely memorised the three pairings I showed it, the unseen arm would have sat
-still; instead it gained 25 points, and the gain is a consistent +25 at each of N=125, 250
-and 500 individually. The model is reading the concept off the code rather than off the
-syntax — partially, not perfectly.
+still; instead it gained 42 points, and it gained at every one of N=125, 250 and 500
+individually (+50, +50, +25). The model is reading the concept off the code rather than off
+the syntax — partially, not perfectly.
 
-The seen arm gains more than the unseen arm (+42 vs +25), which is the honest shape of the
+The seen arm gains more than the unseen arm (+58 vs +42), which is the honest shape of the
 result: direct supervision on a pairing helps more than transfer to a withheld one. Both
 matter, and reporting only the seen number would have been the "teaching to the test"
 failure this design was built to avoid.
 
-On the 36-scenario eval set nothing meaningful regressed: n-250 holds 100%/100%, n-125
-robustness *improved* 75% → 92%, and n-500 adherence slipped one scenario (100% → 96%).
+**What it cost.** This is a trade, not a free win. On the 36-scenario in-taxonomy eval,
+n-250 and n-500 adherence each slip one scenario (100% → 96%), and the probe's control arm
+is one trial down (88% → 83%). Each is a single-trial movement at the edge of what this
+sample can resolve, but they point the same way, and the honest summary is that v2 buys a
+large cross-taxonomy gain for a small in-taxonomy cost. n-125 moved the other way
+(adherence 88% → 92%, robustness 75% → 83%).
+
+For a spec that claims a *behavior* rather than a benchmark score, that trade is worth
+taking — but it is a trade. An earlier draft of this section said "nothing meaningful
+regressed", which was true of the run it was written against and is not true of the pinned
+one reported here.
 
 At n=62 both arms got worse. That is expected and was predicted before the run: only 2 of
 62 rows are cross-paired at that prefix, so v2 ≈ v1 there by construction, and the
@@ -158,17 +167,17 @@ movement is 1–2 scenarios of noise on a checkpoint that trains for 24 optimize
 v1's stated answer was **125**, the smallest point clearing an 80% clean-adherence bar.
 
 That number now needs an asterisk. 125 clears the bar *on an eval set that shares the
-training taxonomy*. On the cross arm the same checkpoint scores 25%. A minimum viable N is
+training taxonomy*. On the cross arm the same checkpoint scores 0% (0/8). A minimum viable N is
 only meaningful relative to the distribution you intend to hold the behavior over, and my
 v1 answer silently assumed that distribution was the one I had generated.
 
-Against the probe, no checkpoint at any N clears 80% on the cross arm — v2's best is 75%
+Against the probe, no checkpoint at any N clears 80% on the cross arm — v2's best is 75% (6/8)
 at n=250 and n=500. So the honest restatement is:
 
 - **125 remains the minimum viable N for the behavior as specified over the training
-  taxonomy.** v2 does not change that; it holds at 88% adherence.
+  taxonomy.** v2 does not change that; it holds there at 92% adherence, up from v1's 88%.
 - **There is no N in this sweep at which the behavior holds reliably off-taxonomy.** v2
-  roughly doubles cross-arm performance (29% → 67% pooled) but does not reach the bar.
+  more than triples cross-arm performance (21% → 71% pooled) but does not reach the bar.
   Claiming a minimum viable N for the general behavior would repeat exactly the mistake v1
   made.
 
@@ -197,13 +206,20 @@ supports.
 - **The probe is 16 scenarios**, and each per-N cell holds 4. It is a smoke detector, not a
   benchmark — powerful because the arms are matched, not because the sample is large. Quote
   the pooled rows, not the cells.
-- **The judge is not deterministic.** Re-running the identical v2 probe against identical
-  weights flipped 2 of 63 verdicts (3%), with byte-identical model responses on all 63 — so
-  the variance is the judge, not sampling. On a 4-trial cell one flip is 25 points. Both
-  runs are kept: `results/probe-v2/` is the complete run reported here,
-  `results/probe-v2-run1/` is the earlier one, which dropped a trial when the judge returned
-  malformed JSON. Nothing was selected for looking better; the complete run is reported and
-  it is the *weaker* of the two on the unseen arm (58% vs 67%).
+- **The judge is not deterministic, and that is the largest source of noise here.**
+  Re-running the identical probe against identical weights flipped 2 of 63 verdicts (3%)
+  with byte-identical model responses on all 63 — the variance is the judge, not sampling.
+  On a 4-trial cell one flip is 25 points, which is why only the pooled rows are quoted.
+  Every number in this document comes from one pinned sweep at eval commit `3b637d1`
+  against the exact Hub revisions in each `run.json`; `results/probe-v2-run1/` keeps a
+  superseded earlier run for comparison. The pinned numbers are *not* uniformly the
+  flattering ones — the control arm reads −4 points here where an earlier run read +4.
+- **A judge failure was silently costing trials.** The judge intermittently degenerates
+  into blank lines, hits the token cap, and returns JSON truncated mid-object; `eval.py`
+  logged a warning and dropped the trial, so a graded artifact quietly lost evidence. It
+  reproduced at roughly one call in three on one probe scenario. `judge_response` now
+  retries before failing loudly. Every run reported here is complete — 64, 64 and 144
+  trials with zero drops.
 - **v2's cross-paired rows are ~11% of every curve prefix**, and only 2 rows at n=62. The
   data change is expected to bite at 125 and above; the low end is essentially unchanged
   by construction, and any n=62 delta should be read as noise.

@@ -2,32 +2,32 @@
   "eval_set": "data/scenarios.jsonl",
   "n_scenarios": 36,
   "judge_model": "openai/gpt-5.6-luna",
-  "eval_code_commit": "8b181b4-dirty",
+  "eval_code_commit": "3b637d1",
   "device": "mps",
   "targets": [
     {
-      "model_id": "checkpoints/local-eval/tutor-n62-v2",
+      "model_id": "machalek29/qwen3-0.6b-state-lifetime-tutor-n62-v2",
       "role": "tuned",
       "dataset_size": 62,
-      "revision": null
+      "revision": "b0c781882a263763354788308c554dbf0baf6c64"
     },
     {
-      "model_id": "checkpoints/local-eval/tutor-n125-v2",
+      "model_id": "machalek29/qwen3-0.6b-state-lifetime-tutor-n125-v2",
       "role": "tuned",
       "dataset_size": 125,
-      "revision": null
+      "revision": "8f8f7569f5cfbb45492e4cfe710502c2115b18ed"
     },
     {
-      "model_id": "checkpoints/local-eval/tutor-n250-v2",
+      "model_id": "machalek29/qwen3-0.6b-state-lifetime-tutor-n250-v2",
       "role": "tuned",
       "dataset_size": 250,
-      "revision": null
+      "revision": "46ad7fbccd36cd248a73396b9b8f23d00c48daa2"
     },
     {
-      "model_id": "checkpoints/local-eval/tutor-n500-v2",
+      "model_id": "machalek29/qwen3-0.6b-state-lifetime-tutor-n500-v2",
       "role": "tuned",
       "dataset_size": 500,
-      "revision": null
+      "revision": "232c873cde88c0c520cc2774e3e568e38725760f"
     }
   ]
 }

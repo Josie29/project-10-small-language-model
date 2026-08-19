@@ -8,7 +8,7 @@ fewest optimizer steps. Read the low end as data *and* step starvation together.
 
 | N | Checkpoint | Spec adherence | Robustness | Mechanical pass |
 | ---: | --- | ---: | ---: | ---: |
-| 62 | `checkpoints/local-eval/tutor-n62-v2` | 50% | 67% | 86% |
-| 125 | `checkpoints/local-eval/tutor-n125-v2` | 88% | 92% | 97% |
-| 250 | `checkpoints/local-eval/tutor-n250-v2` | 100% | 100% | 100% |
-| 500 | `checkpoints/local-eval/tutor-n500-v2` | 96% | 100% | 100% |
+| 62 | `machalek29/qwen3-0.6b-state-lifetime-tutor-n62-v2` | 50% | 67% | 86% |
+| 125 | `machalek29/qwen3-0.6b-state-lifetime-tutor-n125-v2` | 92% | 83% | 97% |
+| 250 | `machalek29/qwen3-0.6b-state-lifetime-tutor-n250-v2` | 96% | 100% | 100% |
+| 500 | `machalek29/qwen3-0.6b-state-lifetime-tutor-n500-v2` | 96% | 100% | 100% |

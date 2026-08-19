@@ -117,13 +117,13 @@ equally unseen code (**control**). The control arm is what rules out plain novel
 
 | checkpoint | control | cross |
 | --- | ---: | ---: |
-| n-125 | 88% | 25% |
-| **n-250** | **88%** | **12%** |
-| n-500 | 88% | 50% |
+| n-125 | 88% (7/8) | 0% (0/8) |
+| **n-250** | **88% (7/8)** | **12% (1/8)** |
+| n-500 | 88% (7/8) | 50% (4/8) |
 
 The checkpoint that scores 100%/100% above scores **12%** when the shape stops predicting
-the concept, and the gap *widens* with N — the signature of shortcut learning. Full
-transcripts in `results/probe-v1/`.
+the concept, while the control arm holds at 88% on equally unseen code. Full transcripts in
+`results/probe-v1/`, pinned to the exact Hub revisions and eval commit.
 
 ## v2: the data change
 
@@ -136,17 +136,23 @@ Pooled over N=125/250/500:
 
 | Arm | v1 | v2 | delta |
 | --- | --- | --- | ---: |
-| control | 88% (21/24) | 92% (22/24) | +4 pts |
-| cross-seen | 25% (3/12) | **67% (8/12)** | **+42 pts** |
-| cross-unseen | 33% (4/12) | **58% (7/12)** | **+25 pts** |
+| control | 88% (21/24) | 83% (20/24) | −4 pts |
+| cross-seen | 17% (2/12) | **75% (9/12)** | **+58 pts** |
+| cross-unseen | 25% (3/12) | **67% (8/12)** | **+42 pts** |
 
-The withheld pairings improved too, which is the result that matters. Nothing meaningful
-regressed on the 36-scenario set. Full tables, including per-N cells and their raw counts:
-`results/delta-v1-v2.md` (`python compare.py`). Reasoning and caveats:
-[docs/brainlift.md](docs/brainlift.md).
+The withheld pairings improved almost as much as the trained ones, which is the result that
+matters: v2 taught the model to read the concept off the code, not four more templates.
 
-**Read the pooled rows, not the cells.** Each per-N cell holds 4 trials, and re-running the
-identical eval against identical weights flipped 2 of 63 judge verdicts.
+**It is a trade, not a free win.** v2 costs about one scenario at the top of the
+in-taxonomy curve — n-250 and n-500 adherence both go 100% → 96% — and the probe's control
+arm is one trial down. In exchange the cross arm roughly triples. That is the right trade
+for a spec that claims a *behavior*, but it should be read as a trade.
+
+Full tables with raw counts: `results/delta-v1-v2.md` (`python compare.py`). Reasoning and
+caveats: [docs/brainlift.md](docs/brainlift.md).
+
+**Read the pooled rows, not the cells.** Each per-N cell holds 4 trials, so a single judge
+flip moves a cell 25 points.
 
 ### Honest caveats
 

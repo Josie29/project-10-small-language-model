@@ -8,6 +8,10 @@ from typing import Any
 from slm.reporting import CellResult, Trial, aggregate
 
 DEFAULT_RESULTS = Path("results/base-vs-tuned")
+# The demo is deployed from `space/` alone, so its Docker build context cannot reach
+# `results/`. Write a second copy there rather than duplicating the figure by hand and
+# letting the deployed version drift from the committed one.
+DEMO_ASSETS = Path("space/assets")
 
 # Reference points the curve has to be read against. A tuned model that merely matches the
 # prompted frontier ceiling would prove nothing, which is why the bar sits above it.
@@ -201,11 +205,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Plot the data-efficiency curve")
     parser.add_argument("--results", type=Path, default=DEFAULT_RESULTS)
     parser.add_argument("--out", type=Path, default=DEFAULT_RESULTS)
+    parser.add_argument("--demo-assets", type=Path, default=DEMO_ASSETS)
     args = parser.parse_args()
 
     points = load_curve(args.results)
     for mode, theme in THEMES.items():
         render(points, theme, args.out / f"curve-{mode}.png")
+        render(points, theme, args.demo_assets / f"curve-{mode}.png")
 
     summary: list[dict[str, Any]] = [
         {"n": c.dataset_size, "adherence": c.spec_adherence, "robustness": c.robustness}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from pathlib import Path
 from typing import Any
 
 import gradio as gr
@@ -170,6 +171,28 @@ def compare(code: str, message: str) -> tuple[str, str, str, str]:
     return base, spec_check(base, code), tuned, spec_check(tuned, code)
 
 
+CURVE_IMAGE = Path(__file__).parent / "assets" / "curve-light.png"
+
+RESULTS_TABLE = """
+### Base vs tuned — 36 held-out scenarios, scored by a frozen LLM judge
+
+Spec adherence is the pass rate on 24 clean scenarios; robustness is the pass rate on 12
+adversarial ones that try to jailbreak the tutor into just giving the answer.
+
+| Model | N | Spec adherence | Robustness |
+|---|---:|---:|---:|
+| `Qwen/Qwen3-0.6B` base, full spec prompt | — | 0% | 0% |
+| best prompted frontier model (Claude Haiku 4.5) | — | 71% | 67% |
+| tuned | 62 | 46% | 67% |
+| tuned | 125 | 88% | 75% |
+| tuned | 250 | **100%** | **100%** |
+| tuned | 500 | **100%** | **100%** |
+
+The eval set is independent of training: 0 exact code collisions against the 500-example
+pool, highest shingle similarity 0.20. The smallest dataset that holds the behavior is
+**125 examples**; it saturates at 250.
+"""
+
 with gr.Blocks(title="Python State-Lifetime Tutor") as demo:
     gr.Markdown(
         f"""
@@ -187,30 +210,44 @@ with gr.Blocks(title="Python State-Lifetime Tutor") as demo:
         **exactly one** non-compound question about it, and never state the fix.
         """
     )
-    with gr.Row():
-        code_input = gr.Code(
-            label="Student's Python", language="python", lines=8, value=EXAMPLES[0][0]
-        )
-        message_input = gr.Textbox(
-            label="What the student says", lines=3, value=EXAMPLES[0][1]
-        )
-    run = gr.Button("Compare", variant="primary")
-    with gr.Row():
-        with gr.Column():
-            gr.Markdown(f"### Base — `{BASE_MODEL}`\nPrompted with the full spec")
-            base_out = gr.Markdown()
-            base_verdict = gr.Markdown()
-        with gr.Column():
-            gr.Markdown(f"### Tuned — `{TUNED_MODEL}`\nPrompted with one line")
-            tuned_out = gr.Markdown()
-            tuned_verdict = gr.Markdown()
+    with gr.Tab("Try it"):
+        with gr.Row():
+            code_input = gr.Code(
+                label="Student's Python", language="python", lines=8, value=EXAMPLES[0][0]
+            )
+            message_input = gr.Textbox(
+                label="What the student says", lines=3, value=EXAMPLES[0][1]
+            )
+        run = gr.Button("Compare", variant="primary")
+        with gr.Row():
+            with gr.Column():
+                gr.Markdown(f"### Base — `{BASE_MODEL}`\nPrompted with the full spec")
+                base_out = gr.Markdown()
+                base_verdict = gr.Markdown()
+            with gr.Column():
+                gr.Markdown(f"### Tuned — `{TUNED_MODEL}`\nPrompted with one line")
+                tuned_out = gr.Markdown()
+                tuned_verdict = gr.Markdown()
 
-    gr.Examples(examples=EXAMPLES, inputs=[code_input, message_input])
-    run.click(
-        compare,
-        inputs=[code_input, message_input],
-        outputs=[base_out, base_verdict, tuned_out, tuned_verdict],
-    )
+        gr.Examples(examples=EXAMPLES, inputs=[code_input, message_input])
+        run.click(
+            compare,
+            inputs=[code_input, message_input],
+            outputs=[base_out, base_verdict, tuned_out, tuned_verdict],
+        )
+
+    with gr.Tab("How much data it took"):
+        gr.Markdown("### Data-efficiency curve")
+        if CURVE_IMAGE.exists():
+            gr.Image(
+                value=str(CURVE_IMAGE),
+                show_label=False,
+                show_download_button=True,
+                container=False,
+            )
+        else:
+            gr.Markdown("_Curve image not bundled in this build._")
+        gr.Markdown(RESULTS_TABLE)
 
 if __name__ == "__main__":
     # 0.0.0.0 and $PORT so the same file serves a Hugging Face Space and a container host

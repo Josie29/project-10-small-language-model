@@ -27,6 +27,7 @@ import os; \
  for r in (os.environ['BASE_MODEL'], os.environ['TUNED_MODEL'])]"
 
 COPY app.py .
+COPY assets ./assets
 
 EXPOSE 7860
 CMD ["python", "app.py"]

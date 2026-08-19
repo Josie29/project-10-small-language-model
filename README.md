@@ -183,7 +183,7 @@ double as DPO preference pairs), and `audit-v1.jsonl` (judge transcripts).
 ## Running training, eval, and publishing
 
 ```bash
-uv pip install -e ".[train]"          # torch, transformers, trl, peft
+uv sync --extra train                 # torch, transformers, trl, peft, at locked versions
 cp .env.example .env                  # OPENROUTER_API_KEY for the judge, HF_USER for the Hub
 
 python train.py --dry-run             # slices the pool, renders configs, loads no weights
@@ -208,7 +208,7 @@ model revision.
 ## Running the prompt-ceiling ablation
 
 ```bash
-uv venv && uv pip install -e .
+uv sync                       # creates .venv and installs from uv.lock
 cp .env.example .env          # then fill in OPENROUTER_API_KEY; .env is gitignored
 
 python ablation.py --dry-run   # no API calls, proves the pipeline wiring

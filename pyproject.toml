@@ -31,6 +31,17 @@ plot = ["matplotlib>=3.9"]
 [dependency-groups]
 dev = ["pytest>=8.0"]
 
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+# Flat layout with several non-importable directories at the repo root (data, results,
+# space, docs), which setuptools' auto-discovery refuses to guess at - without this it
+# fails the build with "Multiple top-level packages discovered in a flat-layout". `slm`
+# is the only package; the top-level CLIs are scripts run from the repo root.
+[tool.setuptools.packages.find]
+include = ["slm*"]
+
 [tool.pyright]
 include = [
     "slm",

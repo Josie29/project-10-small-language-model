@@ -1,5 +1,9 @@
-gradio>=5.0
-torch>=2.4
-transformers>=4.51
-accelerate>=1.0
-huggingface_hub>=0.26
+# Upper bounds are load-bearing, not tidiness. This file had none, so a redeploy that
+# changed only the model id pulled Gradio 6, which removed a kwarg gr.Image accepted in
+# 5.x, and the demo crash-looped to 502. A graded demo has to rebuild to the same thing
+# on demo day as it did today.
+gradio>=5.0,<6
+torch>=2.4,<3
+transformers>=4.51,<6
+accelerate>=1.0,<2
+huggingface_hub>=0.26,<2

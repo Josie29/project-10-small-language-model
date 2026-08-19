@@ -1,7 +1,8 @@
-# Brainlift — in progress
+# Brainlift
 
-Status: draft for Early Submission. The v1 and probe sections are final; the v2 section
-is filled in as the retrained checkpoints land.
+Every number here comes from one pinned sweep: eval code at commit `3b637d1` (base-vs-tuned
+at `d4418b6`), the frozen judge, and the exact Hub revisions recorded in each
+`results/*/run.json`. Regenerate the comparison tables with `python compare.py`.
 
 ## The behavior thesis
 
@@ -28,8 +29,8 @@ Four checkpoints on a log-spaced curve, evaluated on 36 held-out scenarios:
 
 | N | Spec adherence | Robustness |
 | ---: | ---: | ---: |
-| 62 | 46% | 67% |
-| 125 | 88% | 75% |
+| 62 | 38% | 67% |
+| 125 | 79% | 67% |
 | 250 | **100%** | **100%** |
 | 500 | **100%** | **100%** |
 
@@ -40,9 +41,9 @@ That reading is wrong.
 
 ### The failure mode I diagnosed from the MVP eval
 
-The judge labelled 21 of the 23 v1 failures `wrong_lifetime_focus`, and my first pass at
+The judge labelled 24 of the 28 v1 failures `wrong_lifetime_focus`, and my first pass at
 the README concluded from that label that *localization* was the thing data buys. It is
-not. **20 of those 21 responses quoted the correct bug region.** Localization was already
+not. **23 of those 24 responses quoted the correct bug region.** Localization was already
 free. What failed was the question:
 
 | concept | what the model asked |
@@ -164,18 +165,29 @@ movement is 1–2 scenarios of noise on a checkpoint that trains for 24 optimize
 
 ## Minimum viable N
 
-v1's stated answer was **125**, the smallest point clearing an 80% clean-adherence bar.
+My MVP answer was **125**, the smallest point clearing an 80% clean-adherence bar. Two
+separate things have since undermined that number, and they undermine it in opposite
+directions.
 
-That number now needs an asterisk. 125 clears the bar *on an eval set that shares the
-training taxonomy*. On the cross arm the same checkpoint scores 0% (0/8). A minimum viable N is
-only meaningful relative to the distribution you intend to hold the behavior over, and my
-v1 answer silently assumed that distribution was the one I had generated.
+**It was never robust to a rerun.** Repinned against exact Hub revisions, v1's n-125 scores
+**79% — 19 of 24, one scenario short of the bar it was chosen for.** Nothing about the model
+changed; the same weights were re-judged. Judge verdicts flip at about 3% run to run and one
+scenario here is 4 points, so 125 was always sitting *on* the threshold rather than above it.
+A minimum-N claim resting on one scenario at a hand-picked bar is not a finding, it is a
+coin landing on its edge.
+
+**And the bar was measuring the wrong distribution anyway.** Whatever 125 scores, it scores
+it *on an eval set that shares the training taxonomy*. On the cross arm the same checkpoint
+scores 0% (0/8). A minimum viable N is only meaningful relative to the distribution you
+intend to hold the behavior over, and my MVP answer silently assumed that distribution was
+the one I had generated.
 
 Against the probe, no checkpoint at any N clears 80% on the cross arm — v2's best is 75% (6/8)
 at n=250 and n=500. So the honest restatement is:
 
-- **125 remains the minimum viable N for the behavior as specified over the training
-  taxonomy.** v2 does not change that; it holds there at 92% adherence, up from v1's 88%.
+- **250 is the minimum viable N over the training taxonomy** — the smallest point clearing
+  the bar outright, at 100%. 125 sits on the bar at 79% under v1 and clears it at 92% under
+  v2, which is exactly the resolution this eval set cannot give you.
 - **There is no N in this sweep at which the behavior holds reliably off-taxonomy.** v2
   more than triples cross-arm performance (21% → 71% pooled) but does not reach the bar.
   Claiming a minimum viable N for the general behavior would repeat exactly the mistake v1
@@ -199,7 +211,16 @@ supports.
    arguable.
 4. **Read the judge's label, then check it.** `wrong_lifetime_focus` sounds like a
    localization failure and I wrote that into my README. The transcripts said localization
-   was fine in 20 of 21 cases. The label pointed at the wrong half of the response.
+   was fine in 23 of 24 cases. The label pointed at the wrong half of the response.
+5. **A threshold result is not a result.** My minimum-N answer was 125 because 125 scored
+   88% against an 80% bar. Repinning the same weights moved it to 79%. Nothing changed but
+   the judge's coin flips. If a headline number would flip on one example, report the
+   interval, not the number.
+6. **Pin the demo's dependencies before you need the demo.** `space/requirements.txt` had
+   `gradio>=5.0` with no upper bound. Redeploying to swap one model id pulled Gradio 6,
+   which had removed a kwarg the app passed, and the live demo went to 502 — a build that
+   had worked unchanged for days. An unpinned range means the demo you rehearse is not the
+   demo the grader loads.
 
 ## Honest caveats
 

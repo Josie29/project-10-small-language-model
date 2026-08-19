@@ -43,8 +43,8 @@ construction, so the system prompt is the only difference the delta can be attri
 | --- | ---: | ---: | ---: | ---: |
 | `Qwen/Qwen3-0.6B` (base, full spec prompt) | — | 0% | 0% | 0% |
 | best prompted frontier model (`claude-haiku-4.5`) | — | 71% | 67% | 11% |
-| tuned `…-n62` | 62 | 46% | 67% | 83% |
-| tuned `…-n125` | 125 | 88% | 75% | 100% |
+| tuned `…-n62` | 62 | 38% | 67% | 83% |
+| tuned `…-n125` | 125 | 79% | 67% | 100% |
 | tuned `…-n250` | 250 | **100%** | **100%** | 100% |
 | tuned `…-n500` | 500 | **100%** | **100%** | 97% |
 
@@ -60,7 +60,7 @@ weights are byte-identical across that pair; `run.json` is the one to pin agains
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="results/base-vs-tuned/curve-dark.png">
-  <img alt="Spec adherence and robustness against training-set size, on a log x-axis. Both metrics rise from 46%/67% at N=62 to 100%/100% at N=250 and stay flat to N=500, crossing the 80% reliability bar between N=62 and N=125." src="results/base-vs-tuned/curve-light.png">
+  <img alt="Spec adherence and robustness against training-set size, on a log x-axis. Both metrics rise from 38% adherence and 67% robustness at N=62 to 100% on both at N=250 and stay flat to N=500. Adherence crosses the 80% reliability bar between N=125, where it reaches 79%, and N=250." src="results/base-vs-tuned/curve-light.png">
 </picture>
 
 Regenerate with `python plot_curve.py`; it reads `results/base-vs-tuned/trials.jsonl`, so
@@ -76,24 +76,34 @@ between points** — not which examples happened to be drawn.
 
 ### Minimum viable N
 
-**125.** That is the smallest point clearing the 80% clean-adherence bar set in
-[docs/tech-stack.md](docs/tech-stack.md) — a bar chosen because merely matching the 71%
-prompted ceiling would prove nothing. The behavior saturates at 250 and 500 buys nothing
-measurable on this eval set.
+**250**, with an honest asterisk on 125.
+
+The bar is 80% clean adherence, set in [docs/tech-stack.md](docs/tech-stack.md) — chosen
+because merely matching the 71% prompted ceiling would prove nothing. 250 clears it
+outright at 100%. **125 lands at 79% — 19 of 24 — one scenario short.**
+
+An earlier version of this section claimed 125, measured before the numbers were repinned
+against exact Hub revisions. Rather than re-run until it reads 80%, the honest statement is
+that 125 sits *on* the bar and is within judge noise of it: re-running the identical eval
+against identical weights flips verdicts at about 3%, and one scenario here is 4 points. A
+minimum-N claim that rests on a single scenario at a hand-picked threshold was never solid
+enough to headline, in either direction.
+
+500 buys nothing measurable over 250 on this eval set.
 
 The honest reading of the low end: at N=62 the run is only 24 optimizer steps, because
-epochs are held fixed across every point so that N stays the sole variable. The 46% at
+epochs are held fixed across every point so that N stays the sole variable. The 38% at
 that point is data *and* step starvation together, not sample efficiency alone.
 
 ### What the curve actually diagnosed
 
-The failure mode that dies as N grows is **`wrong_lifetime_focus`** — 15 at n=62, 6 at
+The failure mode that dies as N grows is **`wrong_lifetime_focus`** — 16 at n=62, 8 at
 n=125, 0 from n=250 — not the format violations that capped the frontier models. Format
 discipline is essentially free: even n=62 passes the mechanical check 83% of the time
 against the best prompted frontier model's 11%.
 
 **It is not localization that needs data.** An earlier version of this section said it was,
-reading the judge's label at face value. The transcripts say otherwise: **20 of the 21
+reading the judge's label at face value. The transcripts say otherwise: **23 of the 24
 `wrong_lifetime_focus` failures quoted the correct bug region.** What fails is the
 *question* — right line, wrong probe, asking when a set was *created* about a bug that is
 about when it is *reset*. Chasing that down is what surfaced the shape/concept confound

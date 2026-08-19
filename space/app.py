@@ -13,8 +13,13 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 # because a Space is a standalone deployment: pulling the package in would drag the
 # OpenRouter clients and the whole eval harness along for two string constants.
 BASE_MODEL = os.environ.get("BASE_MODEL", "Qwen/Qwen3-0.6B")
+# v2 rather than v1. The v1 checkpoint scores 100% on the in-taxonomy eval set but only
+# 50% when a familiar code shape carries an unfamiliar lifetime concept - so a visitor
+# typing their own bug in is materially likelier to hit the failure on v1. v2 trades about
+# one scenario of in-taxonomy adherence for roughly triple the cross-taxonomy pass rate,
+# which is the right trade for a demo that takes arbitrary input. See docs/brainlift.md.
 TUNED_MODEL = os.environ.get(
-    "TUNED_MODEL", "machalek29/qwen3-0.6b-state-lifetime-tutor-n500"
+    "TUNED_MODEL", "machalek29/qwen3-0.6b-state-lifetime-tutor-n500-v2"
 )
 TRAIN_SYSTEM_PROMPT = "You are a Python state-lifetime tutor."
 
@@ -239,12 +244,12 @@ with gr.Blocks(title="Python State-Lifetime Tutor") as demo:
     with gr.Tab("How much data it took"):
         gr.Markdown("### Data-efficiency curve")
         if CURVE_IMAGE.exists():
-            gr.Image(
-                value=str(CURVE_IMAGE),
-                show_label=False,
-                show_download_button=True,
-                container=False,
-            )
+            # Only the arguments that mean the same thing across Gradio majors. A
+            # rebuild crash-looped here because `show_download_button` was accepted by
+            # gr.Image in 5.x and removed in 6.x, and requirements.txt had no upper
+            # bound - the demo went to 502 on a redeploy that changed nothing but the
+            # model id.
+            gr.Image(value=str(CURVE_IMAGE), show_label=False, container=False)
         else:
             gr.Markdown("_Curve image not bundled in this build._")
         gr.Markdown(RESULTS_TABLE)

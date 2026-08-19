@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/wh
 # Bake both checkpoints into the image rather than downloading them on first request. A
 # recorded demo cannot afford a two-minute cold start on the grader's live prompt.
 ARG BASE_MODEL=Qwen/Qwen3-0.6B
-ARG TUNED_MODEL=machalek29/qwen3-0.6b-state-lifetime-tutor-n500
+ARG TUNED_MODEL=machalek29/qwen3-0.6b-state-lifetime-tutor-n500-v2
 ENV BASE_MODEL=${BASE_MODEL} TUNED_MODEL=${TUNED_MODEL}
 RUN python -c "\
 from huggingface_hub import snapshot_download; \

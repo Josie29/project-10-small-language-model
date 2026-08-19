@@ -6,8 +6,8 @@ Robustness = judge pass rate on adversarial scenarios.
 | Model | Strategy | Spec adherence | Robustness | Mechanical pass | n |
 | --- | --- | ---: | ---: | ---: | ---: |
 | `Qwen/Qwen3-0.6B` | zero_shot | 0% | 0% | 0% | 36 |
-| `machalek29/qwen3-0.6b-state-lifetime-tutor-n62` | zero_shot | 46% | 67% | 83% | 36 |
-| `machalek29/qwen3-0.6b-state-lifetime-tutor-n125` | zero_shot | 88% | 75% | 100% | 36 |
+| `machalek29/qwen3-0.6b-state-lifetime-tutor-n62` | zero_shot | 38% | 67% | 83% | 36 |
+| `machalek29/qwen3-0.6b-state-lifetime-tutor-n125` | zero_shot | 79% | 67% | 100% | 36 |
 | `machalek29/qwen3-0.6b-state-lifetime-tutor-n250` | zero_shot | 100% | 100% | 100% | 36 |
 | `machalek29/qwen3-0.6b-state-lifetime-tutor-n500` | zero_shot | 100% | 100% | 97% | 36 |
 
@@ -19,14 +19,14 @@ Robustness = judge pass rate on adversarial scenarios.
 | `Qwen/Qwen3-0.6B` | zero_shot | ownership | 0% | 9 |
 | `Qwen/Qwen3-0.6B` | zero_shot | reset | 0% | 9 |
 | `Qwen/Qwen3-0.6B` | zero_shot | aliasing | 0% | 9 |
-| `machalek29/qwen3-0.6b-state-lifetime-tutor-n62` | zero_shot | creation | 78% | 9 |
+| `machalek29/qwen3-0.6b-state-lifetime-tutor-n62` | zero_shot | creation | 67% | 9 |
 | `machalek29/qwen3-0.6b-state-lifetime-tutor-n62` | zero_shot | ownership | 56% | 9 |
 | `machalek29/qwen3-0.6b-state-lifetime-tutor-n62` | zero_shot | reset | 67% | 9 |
-| `machalek29/qwen3-0.6b-state-lifetime-tutor-n62` | zero_shot | aliasing | 11% | 9 |
+| `machalek29/qwen3-0.6b-state-lifetime-tutor-n62` | zero_shot | aliasing | 0% | 9 |
 | `machalek29/qwen3-0.6b-state-lifetime-tutor-n125` | zero_shot | creation | 100% | 9 |
-| `machalek29/qwen3-0.6b-state-lifetime-tutor-n125` | zero_shot | ownership | 78% | 9 |
-| `machalek29/qwen3-0.6b-state-lifetime-tutor-n125` | zero_shot | reset | 78% | 9 |
-| `machalek29/qwen3-0.6b-state-lifetime-tutor-n125` | zero_shot | aliasing | 78% | 9 |
+| `machalek29/qwen3-0.6b-state-lifetime-tutor-n125` | zero_shot | ownership | 67% | 9 |
+| `machalek29/qwen3-0.6b-state-lifetime-tutor-n125` | zero_shot | reset | 67% | 9 |
+| `machalek29/qwen3-0.6b-state-lifetime-tutor-n125` | zero_shot | aliasing | 67% | 9 |
 | `machalek29/qwen3-0.6b-state-lifetime-tutor-n250` | zero_shot | creation | 100% | 9 |
 | `machalek29/qwen3-0.6b-state-lifetime-tutor-n250` | zero_shot | ownership | 100% | 9 |
 | `machalek29/qwen3-0.6b-state-lifetime-tutor-n250` | zero_shot | reset | 100% | 9 |
@@ -40,8 +40,9 @@ Robustness = judge pass rate on adversarial scenarios.
 
 | Violation | Count |
 | --- | ---: |
-| wrong_lifetime_focus | 39 |
+| wrong_lifetime_focus | 42 |
 | no_question | 9 |
-| multiple_questions | 5 |
-| emitted_code | 3 |
-| stated_fix | 3 |
+| stated_fix | 5 |
+| emitted_code | 4 |
+| multiple_questions | 3 |
+| no_localization | 1 |

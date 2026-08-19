@@ -1,11 +1,21 @@
 from __future__ import annotations
 
 import openai
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from slm.config import JUDGE, MAX_TOKENS
 from slm.scenarios import Scenario
 from slm.spec import JUDGE_RUBRIC
+
+# The judge occasionally degenerates into emitting blank lines, runs into
+# `max_completion_tokens`, and returns JSON cut off mid-object. Measured on one probe
+# scenario it happens on roughly one call in three, which silently cost a trial in two
+# separate runs before it was tracked down.
+#
+# Retrying is safe for comparability: a truncated reply carries no verdict at all, so
+# there is nothing to select between. This re-asks for a verdict, it does not re-ask for
+# a better one - the retry condition is "unparseable", never "the wrong answer".
+JUDGE_ATTEMPTS = 3
 
 class JudgeVerdict(BaseModel):
     """LLM-as-judge scoring of one response against the Behavior Spec."""
@@ -98,20 +108,36 @@ async def judge_response(
         expected_question_focus=scenario.expected_question_focus,
         response=response,
     )
-    completion = await client.chat.completions.create(
-        model=JUDGE.model_id,
-        max_completion_tokens=MAX_TOKENS,
-        messages=[{"role": "user", "content": prompt}],
-        response_format={
-            "type": "json_schema",
-            "json_schema": {
-                "name": "judge_verdict",
-                "strict": True,
-                "schema": _VERDICT_SCHEMA,
+    last_failure = ""
+    for _ in range(JUDGE_ATTEMPTS):
+        completion = await client.chat.completions.create(
+            model=JUDGE.model_id,
+            max_completion_tokens=MAX_TOKENS,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "judge_verdict",
+                    "strict": True,
+                    "schema": _VERDICT_SCHEMA,
+                },
             },
-        },
+        )
+        choice = completion.choices[0]
+        content = choice.message.content
+        if not content:
+            last_failure = "empty response"
+            continue
+        if choice.finish_reason == "length":
+            # Truncated mid-object. Parsing would fail anyway; say so precisely rather
+            # than reporting it as malformed JSON.
+            last_failure = f"hit the {MAX_TOKENS}-token cap and was truncated"
+            continue
+        try:
+            return JudgeVerdict.model_validate_json(content)
+        except ValidationError as exc:
+            last_failure = f"unparseable verdict: {exc}"
+    raise RuntimeError(
+        f"judge returned no usable verdict for {scenario.id} after "
+        f"{JUDGE_ATTEMPTS} attempts - {last_failure}"
     )
-    content = completion.choices[0].message.content
-    if not content:
-        raise RuntimeError(f"judge returned no verdict for {scenario.id}")
-    return JudgeVerdict.model_validate_json(content)

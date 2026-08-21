@@ -11,26 +11,44 @@ Full spec with edge-case rulings and metric definitions: [docs/behavior-spec.md]
 
 ## Status
 
-Architecture Defense passed. Spec finalized, 36-scenario set written, prompt-ceiling
-ablation harness built and **the full sweep has run** — 216 trials in
-`results/state-lifetime-v1/`.
+Architecture Defense, MVP, and Early Submission are all in. Two datasets, eight public
+checkpoints, and a live demo.
 
-Prompting plateaus below the reliability bar. Best cell is 71% spec adherence / 67%
-robustness (`claude-haiku-4.5`, zero-shot); no strategy on either model clears it. The
-failure mode that survives every prompting attempt is **compound questions** — 77 of 94
-violations are `multiple_questions`, where the model localizes correctly and then asks
-two things at once. Per-concept, `ownership` is the weakest (0–56% across all six cells).
+**Shipped model:** [`qwen3-0.6b-state-lifetime-tutor-n500-v2`](https://huggingface.co/machalek29/qwen3-0.6b-state-lifetime-tutor-n500-v2)
+· **Live demo:** <https://slm-state-lifetime-demo-production.up.railway.app> (base vs v2
+side by side; first request loads weights and takes ~15s) · **Datasets:**
+[v1](https://huggingface.co/datasets/machalek29/state-lifetime-tutor-v1) ·
+[v2](https://huggingface.co/datasets/machalek29/state-lifetime-tutor-v2)
 
-**The loop is closed, and then reopened by its own eval.** 500-example training pool, four
-checkpoints on the data-efficiency curve, all public on the Hub, evaluated against the same
-frozen judge and the same 36 held-out scenarios that produced the ablation numbers above.
+**The prompt ceiling is real.** 216 trials in `results/state-lifetime-v1/`. Best cell is 71%
+spec adherence / 67% robustness (`claude-haiku-4.5`, zero-shot); no strategy on either
+frontier model clears the bar. The failure mode that survives every prompting attempt is
+**compound questions** — 77 of 94 violations are `multiple_questions`, where the model
+localizes correctly and then asks two things at once.
 
-Those checkpoints hit 100%/100% at N=250 — and a 16-scenario probe then showed that number
-was measuring a shortcut, not the behavior. See [the confound](#the-confound-these-numbers-were-hiding)
-and [the v2 data change](#v2-the-data-change) that recovers most of it.
+**The loop closed, and then its own eval reopened it.** v1's checkpoints hit 100%/100% at
+N=250 — and a 16-scenario shape-swap probe showed that number was measuring a shortcut, not
+the behavior. All 20 code shapes mapped to exactly one lifetime concept, so the model could
+learn `syntax → question template` and score 100%, and the eval set could not see it because
+it was drawn from the same taxonomy. See [the confound](#the-confound-these-numbers-were-hiding).
+
+**v2 is the data change that answers it** — 60 cross-paired rows, no hyperparameter moved,
+three pairings withheld from training on purpose as a held-out test of the fix. Cross-arm
+performance roughly triples and the withheld pairings gain nearly as much as the trained
+ones. See [the v2 data change](#v2-the-data-change).
+
+**Minimum viable N is 125 on v2**, against the training taxonomy; v1 needs 250 for the same
+bar. The data change halved it. Read the interval, not the number — see
+[Minimum viable N](#minimum-viable-n).
+
+**What is not resolved:** no checkpoint at any N clears the bar *off*-taxonomy. v2 gets the
+cross arm from 21% to 71% pooled and still does not reach 80%. v2 reduces the shortcut, it
+does not remove it — 8 of 20 shapes are still concept-pure, and the same probe rebuilt
+against those would collapse again.
 
 Stack for the fine-tuning phase, including the QLoRA deviation:
-[docs/tech-stack.md](docs/tech-stack.md).
+[docs/tech-stack.md](docs/tech-stack.md). Reasoning, dead ends, and what I would tell
+someone starting this: [docs/brainlift.md](docs/brainlift.md).
 
 ## Base vs tuned
 
@@ -48,8 +66,14 @@ construction, so the system prompt is the only difference the delta can be attri
 | tuned `…-n250` | 250 | **100%** | **100%** | 100% |
 | tuned `…-n500` | 500 | **100%** | **100%** | 97% |
 
+**These are the v1 numbers**, kept because they are what the confound was found in and the
+100% at N=250 is the claim this project spent a round falsifying. The shipped model is
+v2-n500; its numbers are in [v2: the data change](#v2-the-data-change), measured on the same
+eval set with the same judge.
+
 Raw per-example judge transcripts: `results/base-vs-tuned/trials.jsonl`. Pinned eval-code
-commit, judge, and model revisions: `results/base-vs-tuned/run.json`.
+commit, judge, and model revisions: `results/base-vs-tuned/run.json`. The v2 equivalents are
+in `results/base-vs-tuned-v2/`.
 
 The revisions in `run.json` are the **weights commits** — the exact ones these numbers were
 measured against. `results/checkpoints.jsonl` records each repo's current HEAD, which is one

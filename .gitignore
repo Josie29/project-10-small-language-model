@@ -17,6 +17,9 @@ results/*
 !results/base-vs-tuned-v2/
 !results/train-v2/
 !results/delta-v1-v2.md
+# The 24 mislocalisation transcripts the demo and the Brainlift both argue from, tabulated.
+# Derived from results/base-vs-tuned/trials.jsonl; the filter that regenerates it is in the file.
+!results/failure-audit-v1.md
 __pycache__/
 *.pyc
 .DS_Store

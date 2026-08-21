@@ -202,9 +202,17 @@ class Counter:
 
 **On screen:** whatever beat 6 ended on. Do not switch tabs; talk to camera.
 
-> Minimum viable N is **250**, not the 125 I claimed at MVP — repinned, 125 scores 79%
-> against an 80% bar. One scenario. I could have re-run until it read 80%; the honest
-> version is that 125 sits *on* the bar.
+> Minimum viable N is **125 on v2**. v1 needs 250 to clear the same 80% bar — repinned, v1's
+> 125 scores 79%, one scenario short. **The data change halved it.**
+>
+> Nothing differs between those two curves except which rows are in the pool. So that
+> halving measures the data change directly — it is the cross-arm result read from the
+> other end. Breaking the shortcut bought sample efficiency, not just generalisation, and
+> I did not predict that.
+>
+> Say the sample size before a grader does: adherence is 24 scenarios, so the 95% interval
+> on that 92% is **74 to 98**. The halving is the robust claim, not the 125 — it's a
+> relative comparison on the same 24 scenarios, so the sampling error mostly cancels.
 >
 > And no checkpoint at any N clears that bar off-taxonomy. v2 more than triples cross-arm
 > performance, 21% to 71%, and still does not get there. That is the Sunday problem.
@@ -234,6 +242,14 @@ class Counter:
 - **"Isn't the probe too small?"** Yes, 16 scenarios, 4 per cell. It is a smoke detector,
   not a benchmark. It is convincing because the arms are matched, not because it is large —
   which is why I quote pooled rows.
+- **"Isn't 24 scenarios too small for the adherence number?"** Yes, and the same answer
+  applies. One scenario is 4.2 points, the 80% bar sits between 19/24 and 20/24 so it is not
+  even reachable, and the 95% interval on v2's 91.7% at N=125 is [74%, 98%] — the point
+  estimate clears the bar, the interval straddles it. It would take about 48 clean scenarios
+  to close that. I did not grow the eval set on the last day because it is
+  contamination-checked and every pinned number is measured against it. The defensible claim
+  is the *halving*, which is a relative comparison on the same 24 scenarios where the
+  sampling error largely cancels.
 - **"Did you tune hyperparameters?"** No. Same recipe, same epochs, same N at every point.
   The only change is which rows are in the pool.
 - **"Which model would you submit?"** v2-n500. It gives up ~4 points in-taxonomy for roughly

@@ -76,24 +76,65 @@ between points** — not which examples happened to be drawn.
 
 ### Minimum viable N
 
-**250**, with an honest asterisk on 125.
+**125 on v2, against the training taxonomy.** v1 needs 250 to clear the same bar. The data
+change halved the minimum viable dataset size.
 
 The bar is 80% clean adherence, set in [docs/tech-stack.md](docs/tech-stack.md) — chosen
-because merely matching the 71% prompted ceiling would prove nothing. 250 clears it
-outright at 100%. **125 lands at 79% — 19 of 24 — one scenario short.**
+because merely matching the 71% prompted ceiling would prove nothing.
 
-An earlier version of this section claimed 125, measured before the numbers were repinned
-against exact Hub revisions. Rather than re-run until it reads 80%, the honest statement is
-that 125 sits *on* the bar and is within judge noise of it: re-running the identical eval
-against identical weights flips verdicts at about 3%, and one scenario here is 4 points. A
-minimum-N claim that rests on a single scenario at a hand-picked threshold was never solid
-enough to headline, in either direction.
+| N | v1 adherence | v2 adherence |
+| ---: | --- | --- |
+| 62 | 38% (9/24) | 50% (12/24) |
+| 125 | **79% (19/24)** — under the bar | **92% (22/24)** — clears it |
+| 250 | 100% (24/24) | 96% (23/24) |
+| 500 | 100% (24/24) | 96% (23/24) |
 
-500 buys nothing measurable over 250 on this eval set.
+**Minimum viable N is a property of the dataset, not the model.** Same base, same rank,
+alpha, LR, schedule, epochs and masking; same 36 scenarios; same frozen judge. The only
+thing that differs between those two columns is which rows are in the pool. Read that way,
+the halving is the cleanest single measurement of what breaking the shape/concept confound
+bought — the same result as the +58/+42 cross-arm gains, read from the other end. v1 at 125
+is still learning `shape → question template`, and 20 shapes do not fit in 125 examples.
+v2 has to read the concept off the code, and that transfers across shapes, so it needs
+fewer examples per shape.
+
+**The lower number is also the better-evidenced one**, which is worth saying because it is
+backwards from what you would expect. v1's 250 rests on 125 missing by a *single scenario* —
+79% against an 80% bar, inside the ~3% run-to-run judge noise, where one scenario is 4
+points. An earlier version of this section claimed 125 for v1 at 88%, before the numbers
+were repinned against exact Hub revisions; rather than re-run until it read 80%, the honest
+statement is that v1's 125 sits *on* the bar. v2's 125 is three scenarios clear of it, and
+its robustness at that point is 83% against v1's 67%.
+
+**Report the interval, not the number.** Adherence is measured over 24 clean scenarios, so
+one scenario is 4.2 points and the 80% bar is not reachable — it sits between 19/24 (79.2%)
+and 20/24 (83.3%), which makes the real bar "at least 20 of 24." At that sample size a 95%
+Wilson interval is wide enough that **v2's 91.7% at N=125 does not establish >80% at 95%
+confidence: [74%, 98%]**. The point estimate clears the bar; the interval straddles it. It
+would take roughly 48 clean scenarios for a 92% observation to put its lower bound above
+80%.
+
+That is a limitation of the eval set, and the eval set is not going to grow: it is
+contamination-checked and every committed number is pinned against it, so expanding it would
+invalidate the comparison it exists to support. So the claim is stated at the strength the
+evidence carries — 125 is where v2 crosses the bar on 24 clean scenarios, and the halving
+against v1 is the robust part, because it is a *relative* comparison on the same 24
+scenarios with the same judge, where the sampling error largely cancels.
+
+**This is only defined against the distribution the eval set is drawn from.** On the
+shape-swap probe no checkpoint at any N clears 80% on the cross arm — v2 more than triples
+it, 21% → 71% pooled, and still does not get there. A minimum viable N for the behavior in
+general would repeat the exact mistake v1's 100% made. See
+[the confound](#the-confound-these-numbers-were-hiding).
+
+500 buys nothing measurable over 250 on either pool.
 
 The honest reading of the low end: at N=62 the run is only 24 optimizer steps, because
 epochs are held fixed across every point so that N stays the sole variable. The 38% at
 that point is data *and* step starvation together, not sample efficiency alone.
+
+Minimum viable N and which checkpoint to submit are different questions: v2-n500 is the
+one to ship, because the demo takes arbitrary input and n-500 has the best cross-arm rate.
 
 ### What the curve actually diagnosed
 

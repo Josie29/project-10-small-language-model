@@ -166,8 +166,9 @@ movement is 1–2 scenarios of noise on a checkpoint that trains for 24 optimize
 ## Minimum viable N
 
 My MVP answer was **125**, the smallest point clearing an 80% clean-adherence bar. Two
-separate things have since undermined that number, and they undermine it in opposite
-directions.
+separate things undermined that number, in opposite directions — and then the v2 data
+change landed on 125 again for a completely different reason. The route matters more than
+the destination here, so it is worth walking.
 
 **It was never robust to a rerun.** Repinned against exact Hub revisions, v1's n-125 scores
 **79% — 19 of 24, one scenario short of the bar it was chosen for.** Nothing about the model
@@ -185,13 +186,54 @@ the one I had generated.
 Against the probe, no checkpoint at any N clears 80% on the cross arm — v2's best is 75% (6/8)
 at n=250 and n=500. So the honest restatement is:
 
-- **250 is the minimum viable N over the training taxonomy** — the smallest point clearing
-  the bar outright, at 100%. 125 sits on the bar at 79% under v1 and clears it at 92% under
-  v2, which is exactly the resolution this eval set cannot give you.
+- **125 is the minimum viable N, on v2, over the training taxonomy.** v1 needs 250 to clear
+  the same bar. **The data change halved the minimum viable dataset size.**
 - **There is no N in this sweep at which the behavior holds reliably off-taxonomy.** v2
   more than triples cross-arm performance (21% → 71% pooled) but does not reach the bar.
   Claiming a minimum viable N for the general behavior would repeat exactly the mistake v1
   made.
+
+| N | v1 adherence | v2 adherence |
+| ---: | --- | --- |
+| 62 | 38% (9/24) | 50% (12/24) |
+| 125 | **79% (19/24)** | **92% (22/24)** |
+| 250 | 100% (24/24) | 96% (23/24) |
+| 500 | 100% (24/24) | 96% (23/24) |
+
+The reason to state it that way is that **minimum viable N is a property of the dataset,
+not the model.** Nothing differs between those two columns except which rows are in the
+pool — same base, same rank, alpha, LR, schedule, epochs and masking, same 36 scenarios,
+same frozen judge. So the halving measures the data change directly, and it measures the
+same thing the cross-arm gains measure, from the other end. The mechanism is the one the
+probe exposed: v1 at 125 is still fitting `shape → question template`, and 20 shapes do not
+fit into 125 examples. v2 cannot use that route for 12 of the 20 shapes, so it has to read
+the concept off the code — and a concept transfers across shapes in a way a template does
+not. Breaking the shortcut did not just improve generalisation, it improved sample
+efficiency, and I did not predict that.
+
+It is worth being explicit that **the lower number is the better-evidenced one**, which is
+backwards from the usual direction of this claim. My 250 answer rested on 125 missing by one
+scenario at a hand-picked bar — a coin landing on its edge, as above. v2's 125 is three
+scenarios clear of it, and its robustness at that point is 83% against v1's 67%.
+
+**And then I applied lesson 5 to my own headline.** Adherence is 24 clean scenarios, so one
+scenario is 4.2 points and the 80% bar cannot actually be scored — it falls between 19/24
+(79.2%) and 20/24 (83.3%). Worse, at n=24 the 95% Wilson interval on v2's 91.7% is
+**[74%, 98%]**: the point estimate clears the bar and *the interval does not*. It would take
+about 48 clean scenarios for a 92% observation to put its lower bound above 80%.
+
+I am not going to grow the eval set to fix that. It is contamination-checked and every
+committed number is pinned against it, so expanding it on the last day would invalidate the
+comparison it exists to support, and I would be choosing a bigger n over a stable one at
+exactly the moment I have the least time to verify it. What I will do is stop quoting the
+absolute number as if it were sharp. **The halving is the robust claim, not the 125.** It is
+a relative comparison — same 24 scenarios, same judge, same weights recipe, only the pool
+differs — so the sampling error that makes the absolute number soft largely cancels. "v2
+reaches the bar at half the data v1 needs" survives a sample size that "v2 achieves >80% at
+N=125" does not.
+
+Minimum viable N is not the same question as which checkpoint to submit. That is v2-n500:
+the demo takes arbitrary input, and n-500 has the best cross-arm rate.
 
 That is a less satisfying headline than "100% at 250" and it is the one the evidence
 supports.

@@ -8,7 +8,7 @@ from pathlib import Path
 import anthropic
 import openai
 
-from slm.checks import run_mechanical_check
+from slm.checks import canned_response, run_mechanical_check
 from slm.config import (
     DEFAULT_CONCURRENCY,
     JUDGE,
@@ -149,10 +149,7 @@ def dry_trial(spec_id: str, family: Family, strategy: Strategy, scenario: Scenar
         A fully-populated trial whose verdict is derived from the mechanical check.
     """
     build_prompt(strategy, scenario)  # exercise prompt construction
-    response = (
-        f"Look at `{scenario.bug_region}`. "
-        "When does that object begin its current lifetime?"
-    )
+    response = canned_response(scenario)
     check = run_mechanical_check(response, scenario)
     return Trial(
         scenario_id=scenario.id,

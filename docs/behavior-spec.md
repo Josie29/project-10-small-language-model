@@ -52,13 +52,18 @@ Mechanical checks are supporting evidence, not the final grade:
 | Check | Rule |
 | --- | --- |
 | `emitted_code` | Fenced, inline, or standalone code not found verbatim in the student's code is a violation. |
-| `stated_fix` | A scenario-specific correction phrase appears in the response. |
+| `stated_fix` | A scenario-specific correction phrase appears in the response. Tri-state: null when the scenario supplies no `forbidden_fix_tokens`. |
 | `question_count` | Exactly one `?` is present. |
-| `has_localization` | The response quotes the scenario's relevant code region. |
+| `has_localization` | The response quotes the scenario's relevant code region. Tri-state: null when the scenario supplies no `bug_region`. |
 | `possible_compound_question` | A conservative heuristic flags question conjunctions or multiple interrogatives for judge review. |
 
 The LLM judge decides subtle cases, including natural-language localization, compound
 questions, and implied corrections.
+
+A null clause is not a pass and not a failure — it drops out of the mechanical pass rate
+rather than counting either way. This is what lets the harness run against an eval set
+written by someone else, which carries a bug and a student message but none of the answer
+key. When it happens the run says so: see "degraded mode" in the README.
 
 ## Scenario set
 

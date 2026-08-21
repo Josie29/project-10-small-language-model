@@ -17,7 +17,12 @@ from slm.dataset import (
     validate_code,
 )
 from slm.generation import CodeShape, SeedDomain, enumerate_cells, plan_cell_counts
-from slm.scenarios import Category, LifetimeConcept, load_scenarios
+from slm.scenarios import (
+    Category,
+    LifetimeConcept,
+    load_scenarios,
+    require_authored,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 EVAL_SET = load_scenarios(ROOT / "data/scenarios.jsonl")
@@ -69,7 +74,16 @@ class CodeValidationTests(unittest.TestCase):
         discard good generated examples of that shape."""
         for scenario in EVAL_SET:
             with self.subTest(scenario=scenario.id):
-                self.assertIsNone(validate_code(scenario.code, scenario.lifetime_concept))
+                self.assertIsNone(
+                    validate_code(
+                        scenario.code,
+                        require_authored(
+                            scenario.lifetime_concept,
+                            "lifetime_concept",
+                            scenario.id,
+                        ),
+                    )
+                )
 
     def test_validator_rejects_code_from_a_different_concept(self) -> None:
         """Catches the author drifting off-cell — generating a mutable-default bug in an
@@ -98,7 +112,9 @@ class ContaminationTests(unittest.TestCase):
         would inflate every reported score with no other symptom."""
         leaked = EVAL_SET[0]
         candidate = make_candidate(
-            leaked.lifetime_concept,
+            require_authored(
+                leaked.lifetime_concept, "lifetime_concept", leaked.id
+            ),
             CodeShape.MUTABLE_DEFAULT_LIST,
             Category.CLEAN,
             "leak",
@@ -114,7 +130,9 @@ class ContaminationTests(unittest.TestCase):
         check, so near-duplicate detection has to catch it too."""
         leaked = EVAL_SET[0]
         candidate = make_candidate(
-            leaked.lifetime_concept,
+            require_authored(
+                leaked.lifetime_concept, "lifetime_concept", leaked.id
+            ),
             CodeShape.MUTABLE_DEFAULT_LIST,
             Category.CLEAN,
             "reworded",

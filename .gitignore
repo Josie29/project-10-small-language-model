@@ -25,3 +25,6 @@ __pycache__/
 .DS_Store
 # Merged weights are large and reproducible from the Hub; the checkpoint manifest is not.
 checkpoints/
+
+# Build output from an editable install.
+*.egg-info/

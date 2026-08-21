@@ -177,6 +177,21 @@ flip moves a cell 25 points.
   malformed — they average 615 characters of fluent, confident, wrong explanation. A 0.6B
   model lectures instead of asking, and gets the mechanism wrong while doing it. That is
   the real starting point, not a rigged baseline.
+- **A held-out set written by someone else is scored in degraded mode.** The harness
+  accepts any JSONL file carrying `id`, `code`, and `student_message` — but every scoring
+  signal that depends on a per-scenario answer key drops out. `wrong_lifetime_focus` is 20
+  of the 22 failures in the v2 run above, and that verdict is only sharply decidable with
+  the expected question focus supplied; without it the judge locates the bug itself and
+  grades against the spec alone. Two of the five mechanical clauses have nothing to check
+  against. Dropping a check can only remove evidence a response could have *failed* on, so
+  degraded numbers are biased high and are not comparable to anything in `results/`. The
+  run says so on its face: a banner before the sweep, a note in `table.md`, and
+  `scoring_mode` plus per-field `rubric_coverage` in `run.json`.
+- **The behavior spec is scoped to four concepts.** Closures, async, caching, resources,
+  and concurrency are explicitly out of scope (`slm/spec.py`, edge case 6). A held-out
+  scenario outside that scope scores the spec, not the model. There is no way to code
+  around this and attempting to auto-detect scope would be overfitting to a file we have
+  not seen.
 - **This is LoRA on a bf16 base, not 4-bit QLoRA.** See the deviation note in
   [docs/tech-stack.md](docs/tech-stack.md).
 
@@ -275,6 +290,31 @@ serving account — about 20 minutes on a laptop for the base plus four checkpoi
 writes `results/base-vs-tuned/`: `trials.jsonl` (per-example judge score and reasoning),
 `table.md`, `curve.md`, and `run.json` pinning the eval-code commit, the judge, and every
 model revision.
+
+### Running it against your own eval set
+
+```bash
+python eval.py --model <hf-repo-id> --eval-set your-scenarios.jsonl --no-base --dry-run
+```
+
+An eval set is JSONL, one object per line. **Three keys are required:**
+
+| Key | What |
+|---|---|
+| `id` | Any unique string |
+| `code` | The student's program, as a single string with `\n` newlines |
+| `student_message` | What the student said about it |
+
+Everything else is optional and only sharpens scoring: `category` (`clean` or
+`adversarial`, defaults to `clean`), `language` (defaults to `python`), `bug`,
+`bug_region`, `expected_question_focus`, `forbidden_fix_tokens`, and `lifetime_concept`
+(one of `creation`, `ownership`, `reset`, `aliasing` — an unrecognised value is rejected
+rather than silently accepted, because it is outside the spec's scope).
+
+Start with `--dry-run`. It needs no API key and loads no weights, and it will tell you
+whether the file parses and what the run can and cannot score before you spend anything.
+A run missing any of the optional keys is scored in **degraded mode** — see the caveat
+above for what that costs.
 
 ## Running the prompt-ceiling ablation
 

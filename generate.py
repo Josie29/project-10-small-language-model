@@ -40,7 +40,7 @@ from slm.generation import (
     build_generation_prompt,
 )
 from slm.providers import OpenAICompatibleProvider, Provider, build_client
-from slm.scenarios import Category, Scenario, load_scenarios
+from slm.scenarios import Category, Scenario, load_scenarios, require_authored
 
 # --- Teacher -----------------------------------------------------------------
 #
@@ -256,17 +256,22 @@ def _load_existing(pool_path: Path) -> list[TrainingExample]:
 def _to_candidate(example: TrainingExample) -> Candidate:
     """Project an accepted example back to its candidate form, for re-ranking."""
     scenario = example.scenario
+    sid = scenario.id
     return Candidate(
-        lifetime_concept=scenario.lifetime_concept,
+        lifetime_concept=require_authored(
+            scenario.lifetime_concept, "lifetime_concept", sid
+        ),
         code_shape=example.code_shape,
         category=scenario.category,
         seed_domain=example.seed_domain,
         pressure=example.pressure,
         code=scenario.code,
         student_message=scenario.student_message,
-        bug=scenario.bug,
-        bug_region=scenario.bug_region,
-        expected_question_focus=scenario.expected_question_focus,
+        bug=require_authored(scenario.bug, "bug", sid),
+        bug_region=require_authored(scenario.bug_region, "bug_region", sid),
+        expected_question_focus=require_authored(
+            scenario.expected_question_focus, "expected_question_focus", sid
+        ),
         forbidden_fix_tokens=scenario.forbidden_fix_tokens,
         response=example.response,
         near_miss=example.near_miss,

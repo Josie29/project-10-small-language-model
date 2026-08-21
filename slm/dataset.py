@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from slm.checks import MechanicalCheck, normalize_token, run_mechanical_check
 from slm.generation import Cell, CodeShape, Pressure, SeedDomain
-from slm.scenarios import Category, LifetimeConcept, Scenario
+from slm.scenarios import Category, LifetimeConcept, Scenario, require_authored
 
 # Jaccard similarity above this against any eval scenario is treated as the same
 # program rewritten, not an independent example.
@@ -114,7 +114,9 @@ class TrainingExample(BaseModel):
     def cell(self) -> Cell:
         """The grid bucket this example fills."""
         return Cell(
-            lifetime_concept=self.scenario.lifetime_concept,
+            lifetime_concept=require_authored(
+                self.scenario.lifetime_concept, "lifetime_concept", self.scenario.id
+            ),
             code_shape=self.code_shape,
             category=self.scenario.category,
         )
@@ -425,11 +427,15 @@ def _describe_check(check: MechanicalCheck) -> str:
     broken: list[str] = []
     if check.emitted_code:
         broken.append("emitted_code")
-    if check.stated_fix:
+    # `is True` / `is False` because both clauses are tri-state: None means the scenario
+    # supplied nothing to check against. Authoring candidates always supply both, so None
+    # should not occur here - but reading it as a violation is the exact bug the tri-state
+    # change introduces everywhere it is read with plain truthiness.
+    if check.stated_fix is True:
         broken.append("stated_fix")
     if check.question_count != 1:
         broken.append(f"question_count={check.question_count}")
-    if not check.has_localization:
+    if check.has_localization is False:
         broken.append("no_localization")
     if check.possible_compound_question:
         broken.append("possible_compound_question")

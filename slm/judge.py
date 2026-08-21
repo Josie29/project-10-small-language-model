@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import openai
 from pydantic import BaseModel, ValidationError
 
@@ -79,6 +81,84 @@ _VERDICT_SCHEMA: dict[str, object] = {
 }
 
 
+# Which scenario field supplies each removable block of the prompt. A held-out set will
+# not carry an answer key, and interpolating None into the template would tell the judge
+# the expected region is literally "None" - worse than not asking about it at all.
+OPTIONAL_BLOCKS: tuple[tuple[str, str], ...] = (
+    ("bug", "actual_bug"),
+    ("bug_region", "expected_bug_region"),
+    ("expected_question_focus", "expected_question_focus"),
+)
+
+# Degraded mode only. Without an expected region the judge is deciding localization from
+# its own reading of the code, and it must not report that as if it had an answer key.
+_NO_RUBRIC_NOTE = (
+    "\n\nThis scenario supplies no reference bug region or expected question focus. "
+    "Judge the response against the behavior spec alone. Identify the bug yourself "
+    "from the student code, and only use `no_localization` or `wrong_lifetime_focus` "
+    "when the response is clearly wrong on your own reading - not merely unconfirmed."
+)
+
+
+def _drop_block(template: str, tag: str) -> str:
+    """Remove one `<tag>...</tag>` section and its trailing blank line.
+
+    Args:
+        template: The judge prompt template.
+        tag: Name of the XML-ish tag to remove.
+
+    Returns:
+        The template without that section.
+
+    Raises:
+        RuntimeError: If the tag was not found. A template edit that renames a tag would
+            otherwise silently stop degrading and start rendering "None" at the judge.
+    """
+    # `[^>]*` because <actual_bug> carries a note= attribute.
+    pattern = re.compile(rf"<{tag}[^>]*>\n.*?\n</{tag}>\n\n", re.DOTALL)
+    stripped, count = pattern.subn("", template, count=1)
+    if count != 1:
+        raise RuntimeError(
+            f"judge prompt has no <{tag}> block to remove - the template and "
+            f"OPTIONAL_BLOCKS have drifted apart"
+        )
+    return stripped
+
+
+def build_judge_prompt(scenario: Scenario, response: str) -> str:
+    """Assemble the judge prompt, omitting blocks the scenario cannot fill.
+
+    A fully-specified scenario takes no branch: the frozen template is formatted exactly
+    as it always was, so the prompt is byte-identical to the one every number in
+    `results/` was produced with. Blocks are only ever *removed*, never rebuilt.
+
+    Args:
+        scenario: The scenario the response was produced for.
+        response: The model's response text.
+
+    Returns:
+        The prompt to send to the judge.
+    """
+    template = _JUDGE_PROMPT
+    for field, tag in OPTIONAL_BLOCKS:
+        if getattr(scenario, field) is None:
+            template = _drop_block(template, tag)
+    if not scenario.has_rubric:
+        template += _NO_RUBRIC_NOTE
+    return template.format(
+        rubric=JUDGE_RUBRIC,
+        language=scenario.language,
+        code=scenario.code,
+        # Removed placeholders are simply absent from the template; str.format ignores
+        # kwargs it has no field for, so no per-field bookkeeping is needed here.
+        bug=scenario.bug or "",
+        student_message=scenario.student_message,
+        bug_region=scenario.bug_region or "",
+        expected_question_focus=scenario.expected_question_focus or "",
+        response=response,
+    )
+
+
 async def judge_response(
     client: openai.AsyncOpenAI, scenario: Scenario, response: str
 ) -> JudgeVerdict:
@@ -98,16 +178,7 @@ async def judge_response(
     Raises:
         RuntimeError: If the judge returned no parseable verdict.
     """
-    prompt = _JUDGE_PROMPT.format(
-        rubric=JUDGE_RUBRIC,
-        language=scenario.language,
-        code=scenario.code,
-        bug=scenario.bug,
-        student_message=scenario.student_message,
-        bug_region=scenario.bug_region,
-        expected_question_focus=scenario.expected_question_focus,
-        response=response,
-    )
+    prompt = build_judge_prompt(scenario, response)
     last_failure = ""
     for _ in range(JUDGE_ATTEMPTS):
         completion = await client.chat.completions.create(

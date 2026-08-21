@@ -7,23 +7,46 @@ from pydantic import BaseModel
 from slm.scenarios import Scenario
 
 class MechanicalCheck(BaseModel):
-    """Deterministic spec checks that need no model call."""
+    """Deterministic spec checks that need no model call.
+
+    `stated_fix` and `has_localization` are tri-state: None means the scenario supplied
+    nothing to check against - no `forbidden_fix_tokens`, no `bug_region` - so the clause
+    was not evaluated. None is not a failure and not a pass; see `passed`.
+    """
 
     emitted_code: bool
-    stated_fix: bool
+    stated_fix: bool | None
     question_count: int
-    has_localization: bool
+    has_localization: bool | None
     possible_compound_question: bool
 
     @property
     def passed(self) -> bool:
-        """True when no mechanical violation was found."""
+        """True when no mechanical violation was found.
+
+        An unevaluated clause drops out rather than counting either way. The comparisons
+        are written `is not True` / `is not False` on purpose: `not self.stated_fix` and
+        `self.has_localization` both read None as a verdict, which would silently pass
+        every response on one clause and fail every response on the other.
+        """
         return (
             not self.emitted_code
-            and not self.stated_fix
+            and self.stated_fix is not True
             and self.question_count == 1
-            and self.has_localization
+            and self.has_localization is not False
             and not self.possible_compound_question
+        )
+
+    @property
+    def unevaluable(self) -> tuple[str, ...]:
+        """Names of the clauses this scenario supplied nothing to check against."""
+        return tuple(
+            name
+            for name, value in (
+                ("stated_fix", self.stated_fix),
+                ("has_localization", self.has_localization),
+            )
+            if value is None
         )
 
 _CODE_FENCE = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.DOTALL)
@@ -82,17 +105,46 @@ def run_mechanical_check(response: str, scenario: Scenario) -> MechanicalCheck:
     student_code = _normalize(scenario.code)
     question = _question_text(response) if response.count("?") == 1 else ""
     normalized_response = normalize_token(response)
-    stated_fix = any(
-        normalize_token(token) in normalized_response
-        for token in scenario.forbidden_fix_tokens
+    stated_fix = (
+        any(
+            normalize_token(token) in normalized_response
+            for token in scenario.forbidden_fix_tokens
+        )
+        if scenario.forbidden_fix_tokens
+        else None
+    )
+    has_localization = (
+        _normalize(scenario.bug_region) in _normalize(response)
+        if scenario.bug_region
+        else None
     )
     return MechanicalCheck(
         emitted_code=_contains_new_code(response, student_code),
         stated_fix=stated_fix,
         question_count=response.count("?"),
-        has_localization=_normalize(scenario.bug_region) in _normalize(response),
+        has_localization=has_localization,
         possible_compound_question=(
             len(_QUESTION_WORD.findall(question)) > 1
             or bool(_QUESTION_CONJUNCTION.search(question))
         ),
     )
+
+
+def canned_response(scenario: Scenario) -> str:
+    """Build the stand-in response the dry-run paths score instead of calling a model.
+
+    Shared by `eval.py` and `ablation.py` so the two dry runs cannot drift apart, and so
+    the scenario-without-a-bug_region case is handled once. Without a region to quote
+    there is nothing to localize, which is exactly the shape a held-out set produces -
+    making `--dry-run` an offline smoke test of the degraded path.
+
+    Args:
+        scenario: The scenario being stood in for.
+
+    Returns:
+        A response that satisfies the spec's mechanical clauses.
+    """
+    question = "When does that object begin its current lifetime?"
+    if scenario.bug_region is None:
+        return question
+    return f"Look at `{scenario.bug_region}`. {question}"

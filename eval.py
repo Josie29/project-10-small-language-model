@@ -8,10 +8,10 @@ from enum import StrEnum
 from pathlib import Path
 
 import openai
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from slm.checkpoints import DEFAULT_CHECKPOINTS, infer_dataset_size, load_checkpoints
-from slm.checks import run_mechanical_check
+from slm.checks import canned_response, run_mechanical_check
 from slm.config import (
     BASE_MODEL,
     DEFAULT_CONCURRENCY,
@@ -24,7 +24,13 @@ from slm.local import TransformersProvider, local_spec, resolve_device
 from slm.prompting import Strategy, build_prompt
 from slm.providers import Provider, Turn, build_client
 from slm.reporting import Trial, write_results
-from slm.scenarios import Scenario, load_scenarios, stratified_sample
+from slm.scenarios import (
+    RubricCoverage,
+    Scenario,
+    load_scenarios_with_coverage,
+    rubric_coverage,
+    stratified_sample,
+)
 
 DEFAULT_OUT = Path("results/base-vs-tuned")
 RESULTS_TITLE = "Base vs Tuned — Results"
@@ -61,6 +67,13 @@ class EvalTarget(BaseModel):
         return "behavior_spec_zero_shot" if self.role is TargetRole.BASE else "train_system_prompt"
 
 
+class ScoringMode(StrEnum):
+    """How much of the answer key was available when the numbers were produced."""
+
+    SCENARIO_RUBRIC = "scenario_rubric"
+    SPEC_ONLY = "spec_only"
+
+
 class EvalRun(BaseModel):
     """Everything a grader needs to reproduce one results table.
 
@@ -75,6 +88,58 @@ class EvalRun(BaseModel):
     eval_code_commit: str
     device: str
     targets: list[EvalTarget]
+    # All three default so a manifest written before this existed still parses, and so
+    # a fully-specified run's manifest reads exactly as it always did.
+    scoring_mode: ScoringMode = ScoringMode.SCENARIO_RUBRIC
+    rubric_coverage: RubricCoverage | None = None
+    # Per model, scenarios whose generation or judge call failed and were dropped.
+    trials_dropped: dict[str, int] = Field(default_factory=dict)
+
+
+def degraded_banner(coverage: RubricCoverage) -> str:
+    """Build the warning printed before a run scored without a full answer key.
+
+    Printed before any weights load so an operator learns the run is degraded in the
+    first second rather than after forty minutes of generation.
+
+    Args:
+        coverage: Per-field answer-key counts for the eval set.
+
+    Returns:
+        The banner text, or an empty string when the set is fully specified.
+    """
+    if not coverage.degraded:
+        return ""
+    n = coverage.n_scenarios
+    missing = n - min(coverage.with_bug_region, coverage.with_expected_question_focus)
+    lines = [
+        "",
+        "=" * 78,
+        f"DEGRADED SCORING - {missing} of {n} scenarios carry no bug_region or",
+        "expected_question_focus.",
+        "",
+        "The judge grades those against the behavior spec alone: it sees the code and",
+        "the response but not which line is the bug, so it decides wrong_lifetime_focus",
+        "and no_localization from its own reading. The mechanical clauses those fields",
+        "feed drop out of the mechanical pass rate.",
+    ]
+    if coverage.defaulted_to_clean:
+        lines += [
+            "",
+            f"{coverage.defaulted_to_clean} scenarios carry no category and are counted "
+            "as clean. Spec adherence is",
+            "measured over them; Robustness is measured only over scenarios explicitly",
+            "labelled adversarial. Neither number is a claim about which they are.",
+        ]
+    lines += [
+        "",
+        "Every omission removes evidence a response could have FAILED on, never",
+        "evidence it could have passed on. These numbers are biased high and are not",
+        "comparable to anything in results/.",
+        "=" * 78,
+        "",
+    ]
+    return "\n".join(lines)
 
 
 def build_eval_prompt(role: TargetRole, scenario: Scenario) -> tuple[str, list[Turn]]:
@@ -188,12 +253,19 @@ async def run_trial(
         scenario is dropped from that model's denominator).
     """
     system, turns = build_eval_prompt(target.role, scenario)
+    # Generation and judging are caught separately so the printed line names which half
+    # failed. A systematic judge failure - wrong key, wrong base URL - drops every trial
+    # and yields an empty table; diagnosing that should not require reading source.
     try:
         response = await provider.complete(system, turns)
+    except Exception as exc:  # noqa: BLE001 - one bad scenario must not kill the sweep
+        print(f"  ! {target.model_id}/{scenario.id}: generation failed: {exc}")
+        return None
+    try:
         async with limiter:
             verdict = await judge_response(judge_client, scenario, response)
     except Exception as exc:  # noqa: BLE001 - one bad scenario must not kill the sweep
-        print(f"  ! {target.model_id}/{scenario.id}: {exc}")
+        print(f"  ! {target.model_id}/{scenario.id}: judge failed: {exc}")
         return None
     return Trial(
         scenario_id=scenario.id,
@@ -249,7 +321,15 @@ async def run_sweep(
                 for scenario in scenarios
             )
         )
-        trials += [trial for trial in results if trial is not None]
+        scored = [trial for trial in results if trial is not None]
+        if len(scored) < len(scenarios):
+            # Loud, because the alternative is a plausible rate over a silently smaller
+            # denominator. The count reaches run.json and the results table too.
+            print(
+                f"  ! {target.model_id}: scored {len(scored)} of {len(scenarios)} "
+                f"scenarios - {len(scenarios) - len(scored)} dropped"
+            )
+        trials += scored
         del provider
         release_device_memory(device)
     return trials
@@ -275,6 +355,33 @@ def release_device_memory(device: str) -> None:
         torch.cuda.empty_cache()
 
 
+async def preflight_judge(
+    judge_client: openai.AsyncOpenAI, scenario: Scenario
+) -> None:
+    """Make one judge call before any weights load, to fail fast on a bad client.
+
+    `run_trial` swallows per-scenario failures so one bad scenario cannot kill an hour of
+    generation - which means a misconfigured judge drops every trial and produces an
+    empty table instead of an error. One call up front turns that into one sentence.
+
+    Args:
+        judge_client: Client for judge calls.
+        scenario: Any scenario; only used to build a well-formed request.
+
+    Raises:
+        RuntimeError: If the judge could not be reached or returned nothing usable.
+    """
+    try:
+        await judge_response(judge_client, scenario, canned_response(scenario))
+    except Exception as exc:
+        raise RuntimeError(
+            f"judge preflight failed against {JUDGE.model_id}: {exc}\n"
+            f"Every trial would be dropped and the results table would come out empty. "
+            f"Check the API key and base URL in .env before rerunning."
+        ) from exc
+    print(f"Judge preflight OK ({JUDGE.model_id})")
+
+
 # --- Dry run -----------------------------------------------------------------
 
 
@@ -292,10 +399,7 @@ def dry_trial(target: EvalTarget, scenario: Scenario) -> Trial:
         A fully-populated trial whose verdict is derived from the mechanical check.
     """
     build_eval_prompt(target.role, scenario)  # exercise prompt construction
-    response = (
-        f"Look at `{scenario.bug_region}`. "
-        "When does that object begin its current lifetime?"
-    )
+    response = canned_response(scenario)
     check = run_mechanical_check(response, scenario)
     return Trial(
         scenario_id=scenario.id,
@@ -352,17 +456,29 @@ async def main() -> None:
     )
     args = parser.parse_args()
 
-    scenarios = load_scenarios(args.eval_set)
+    scenarios, coverage = load_scenarios_with_coverage(args.eval_set)
     if args.limit is not None:
         scenarios = stratified_sample(scenarios, args.limit)
+        # Coverage describes whatever is actually being scored, not the file on disk.
+        # The defaulted-to-clean count cannot survive sampling, so it is recomputed as 0
+        # and the banner simply stops claiming it.
+        coverage = rubric_coverage(scenarios)
 
     targets = resolve_targets(
         args.model, None if args.no_base else args.base, args.checkpoints
     )
 
+    print(degraded_banner(coverage), end="")
+
     if args.dry_run:
         trials = [dry_trial(t, s) for t in targets for s in scenarios]
-        write_results(trials, args.out, RESULTS_TITLE)
+        write_results(
+            trials,
+            args.out,
+            RESULTS_TITLE,
+            coverage=coverage,
+            n_scenarios=len(scenarios),
+        )
         print(f"DRY RUN - {len(trials)} trials, no weights loaded and no API calls made")
         return
 
@@ -374,9 +490,18 @@ async def main() -> None:
         f"Judge: {JUDGE.model_id}  |  Device: {device}"
     )
 
+    await preflight_judge(judge_client, scenarios[0])
+
     trials = await run_sweep(targets, scenarios, judge_client, args.concurrency, device)
 
-    write_results(trials, args.out, RESULTS_TITLE)
+    write_results(
+        trials, args.out, RESULTS_TITLE, coverage=coverage, n_scenarios=len(scenarios)
+    )
+    dropped = {
+        t.model_id: len(scenarios)
+        - sum(1 for trial in trials if trial.model_id == t.model_id)
+        for t in targets
+    }
     run = EvalRun(
         eval_set=str(args.eval_set),
         n_scenarios=len(scenarios),
@@ -384,6 +509,13 @@ async def main() -> None:
         eval_code_commit=eval_code_commit(),
         device=device,
         targets=list(targets),
+        scoring_mode=(
+            ScoringMode.SCENARIO_RUBRIC
+            if not coverage.degraded
+            else ScoringMode.SPEC_ONLY
+        ),
+        rubric_coverage=coverage,
+        trials_dropped={k: v for k, v in dropped.items() if v},
     )
     run_path = args.out / "run.json"
     run_path.write_text(run.model_dump_json(indent=2) + "\n")
